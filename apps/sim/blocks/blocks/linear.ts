@@ -2872,7 +2872,7 @@ export const LinearV2Block: BlockConfig<LinearResponse> = {
   sunset: undefined,
   type: 'linear_v2',
   name: 'Linear',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   canvasPresentation: {
     ...LinearBlock.canvasPresentation,
     defaultTitle: 'Linear',

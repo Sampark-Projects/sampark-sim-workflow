@@ -8,6 +8,8 @@ const FILES_FIELD = ['fileUpload', 'fileReference'] as const
 export const A2ABlock: BlockConfig = {
   type: 'a2a',
   name: 'A2A',
+  // Hidden from the toolbar/search/catalog; existing placed instances still resolve.
+  hideFromToolbar: true,
   description: 'Interact with external A2A-compatible agents',
   longDescription:
     'Use the A2A (Agent-to-Agent) protocol to call external AI agents. Send messages, ' +

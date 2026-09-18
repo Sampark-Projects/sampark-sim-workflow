@@ -6,6 +6,7 @@ import { getTrigger } from '@/triggers'
 export const GreenhouseBlock: BlockConfig<GreenhouseResponse> = {
   type: 'greenhouse',
   name: 'Greenhouse',
+  hideFromToolbar: true,
   description: 'Manage candidates, jobs, and applications in Greenhouse',
   longDescription:
     'Integrate Greenhouse into the workflow. List and retrieve candidates, jobs, applications, users, departments, offices, and job stages from your Greenhouse ATS account.',

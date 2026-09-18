@@ -557,6 +557,7 @@ function attachmentIdCondition(values?: Record<string, unknown>) {
 export const QuickBooksBlock: BlockConfig<QuickBooksResponse> = {
   type: 'quickbooks',
   name: 'QuickBooks',
+  hideFromToolbar: true,
   description:
     'Manage QuickBooks Online company, transactions, reports, emails, PDFs, and attachments',
   authMode: AuthMode.OAuth,

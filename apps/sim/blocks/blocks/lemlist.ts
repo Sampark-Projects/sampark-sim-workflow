@@ -6,6 +6,7 @@ import { getTrigger } from '@/triggers'
 export const LemlistBlock: BlockConfig<LemlistResponse> = {
   type: 'lemlist',
   name: 'Lemlist',
+  hideFromToolbar: true,
   description: 'Manage outreach activities, leads, and send emails via Lemlist',
   authMode: AuthMode.ApiKey,
   longDescription:

@@ -13,6 +13,7 @@ const CAPTURE_AMOUNT_FIELD = ['amount_to_capture', 'amount'] as const
 export const StripeBlock: BlockConfig<StripeResponse> = {
   type: 'stripe',
   name: 'Stripe',
+  hideFromToolbar: true,
   description: 'Process payments and manage Stripe data',
   authMode: AuthMode.ApiKey,
   longDescription:

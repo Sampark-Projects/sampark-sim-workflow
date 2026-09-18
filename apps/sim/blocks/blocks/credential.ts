@@ -19,6 +19,7 @@ const MCP_OPERATIONS = ['find_organization_mcp_connection', 'list_organization_m
 export const CredentialBlock: BlockConfig = {
   type: 'credential',
   name: 'Credential',
+  hideFromToolbar: true,
   description: 'Select credentials or find organization accounts and MCP connections',
   longDescription:
     'Select workspace OAuth credentials or find and list organization accounts in an allowlisted workspace. Organization accounts are shared with every authorized workflow in that workspace. Returns credential references and account metadata. Manage invitations in organization settings.',

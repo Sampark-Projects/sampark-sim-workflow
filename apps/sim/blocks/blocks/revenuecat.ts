@@ -7,6 +7,7 @@ import { getTrigger } from '@/triggers'
 export const RevenueCatBlock: BlockConfig<RevenueCatResponse> = {
   type: 'revenuecat',
   name: 'RevenueCat',
+  hideFromToolbar: true,
   description: 'Manage in-app subscriptions and entitlements',
   authMode: AuthMode.ApiKey,
   longDescription:

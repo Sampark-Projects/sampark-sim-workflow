@@ -73,6 +73,7 @@ blockOutputs.provider = {
 export const EnrichmentBlock: BlockConfig<EnrichmentRunResponse> = {
   type: 'enrichment',
   name: 'Data Enrichment',
+  hideFromToolbar: true,
   description: 'Enrich data with a Sim enrichment',
   longDescription:
     'Run a Sim enrichment to look up data — work email, phone number, company domain, company info, and more — from the fields you map in. Uses the same provider cascade as table enrichments.',

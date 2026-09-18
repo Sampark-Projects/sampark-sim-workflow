@@ -5,6 +5,7 @@ export const ScheduleBlock: BlockConfig = {
   type: 'schedule',
   triggerAllowed: true,
   name: 'Schedule',
+  hideFromToolbar: true,
   description: 'Trigger workflow execution on a schedule',
   docsLink: 'https://docs.sim.ai/workflows/triggers/schedule',
   longDescription:

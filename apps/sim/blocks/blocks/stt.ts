@@ -377,7 +377,7 @@ export const SttV2Block: BlockConfig<SttBlockResponse> = {
   sunset: undefined,
   type: 'stt_v2',
   name: 'Speech-to-Text',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   canvasPresentation: {
     defaultTitle: 'Speech-to-Text',
     sentences: {

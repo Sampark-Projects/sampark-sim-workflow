@@ -840,8 +840,6 @@ describe.concurrent('Blocks Module', () => {
       const imageProviderOptions = imageProviderSubBlock?.options
       const videoProviderOptions = videoProviderSubBlock?.options
 
-      expect(imageGeneratorBlock?.hideFromToolbar).not.toBe(true)
-      expect(videoGeneratorBlock?.hideFromToolbar).not.toBe(true)
       expect(imageProviderSubBlock?.commandSearchable).toBe(true)
       expect(videoProviderSubBlock?.commandSearchable).toBe(true)
       expect(imageProviderSubBlock?.value?.()).toBe('falai')
@@ -978,7 +976,6 @@ describe.concurrent('Blocks Module', () => {
       const agentBlock = getBlock('agent')
       const modelSubBlock = agentBlock?.subBlocks.find((sb) => sb.id === 'model')
 
-      expect(agentBlock?.hideFromToolbar).not.toBe(true)
       expect(modelSubBlock?.type).toBe('combobox')
       expect(modelSubBlock?.commandSearchable).toBe(true)
     })

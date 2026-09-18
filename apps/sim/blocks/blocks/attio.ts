@@ -21,6 +21,7 @@ const COMMENT_TARGET_FIELD = ['commentEntryId', 'commentRecordId', 'commentThrea
 export const AttioBlock: BlockConfig<AttioResponse> = {
   type: 'attio',
   name: 'Attio',
+  hideFromToolbar: true,
   description: 'Manage records, notes, tasks, lists, comments, and more in Attio CRM',
   longDescription:
     'Connect to Attio to manage CRM records (people, companies, custom objects), notes, tasks, lists, list entries, comments, workspace members, and webhooks.',

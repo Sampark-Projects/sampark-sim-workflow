@@ -19,6 +19,7 @@ const CALENDAR_FIELD = ['calendarSelector', 'manualCalendarId'] as const
 export const OutlookBlock: BlockConfig<OutlookResponse> = {
   type: 'outlook',
   name: 'Outlook',
+  hideFromToolbar: true,
   description: 'Send, read, search, reply, organize, and manage Outlook email and calendar',
   authMode: AuthMode.OAuth,
   longDescription:

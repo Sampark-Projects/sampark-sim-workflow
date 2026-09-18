@@ -7,6 +7,7 @@ import { getTrigger } from '@/triggers'
 export const TwilioVoiceBlock: BlockConfig<ToolResponse> = {
   type: 'twilio_voice',
   name: 'Twilio Voice',
+  hideFromToolbar: true,
   description: 'Make and manage phone calls',
   authMode: AuthMode.ApiKey,
   longDescription:

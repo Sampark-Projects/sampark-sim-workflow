@@ -8,6 +8,7 @@ import { getTrigger } from '@/triggers'
 export const SentryBlock: BlockConfig<SentryResponse> = {
   type: 'sentry',
   name: 'Sentry',
+  hideFromToolbar: true,
   description: 'Manage Sentry issues, projects, events, and releases',
   authMode: AuthMode.ApiKey,
   longDescription:

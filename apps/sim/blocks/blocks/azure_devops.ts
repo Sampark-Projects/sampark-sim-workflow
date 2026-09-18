@@ -15,6 +15,7 @@ function normalizeDate(input: unknown): string | undefined {
 export const AzureDevOpsBlock: BlockConfig<AzureDevOpsResponse> = {
   type: 'azure_devops',
   name: 'Azure DevOps',
+  hideFromToolbar: true,
   description: 'Interact with Azure DevOps pipelines, builds, and work items',
   longDescription:
     'Integrate Azure DevOps into your workflow. List and inspect pipelines and builds, query and manage work items, and add or read comments.',

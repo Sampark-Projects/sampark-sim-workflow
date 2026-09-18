@@ -15,6 +15,7 @@ const DOCUMENT_FIELD = ['documentSelector', 'documentId'] as const
 export const KnowledgeBlock: BlockConfig = {
   type: 'knowledge',
   name: 'Knowledge',
+  hideFromToolbar: true,
   description: 'Use vector search',
   longDescription:
     'Integrate Knowledge into the workflow. Perform full CRUD operations on documents, chunks, and tags.',

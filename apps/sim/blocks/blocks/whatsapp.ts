@@ -21,6 +21,7 @@ const UPLOAD_FILE_FIELD = ['uploadFile', 'uploadFileRef'] as const
 export const WhatsAppBlock: BlockConfig<WhatsAppResponse> = {
   type: 'whatsapp',
   name: 'WhatsApp',
+  hideFromToolbar: true,
   description: 'Send WhatsApp messages',
   authMode: AuthMode.ApiKey,
   longDescription:

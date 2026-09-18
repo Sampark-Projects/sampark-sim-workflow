@@ -224,6 +224,7 @@ const SORT_FIELD = ['sortBuilder', 'order'] as const
 export const TableV2Block: BlockConfig<TableQueryV2Response> = {
   type: 'table_v2',
   name: 'Table',
+  hideFromToolbar: true,
   description: 'User-defined data tables',
   longDescription:
     'Create and manage custom data tables. Store, query, and manipulate structured data within workflows. Query Rows accepts a plain predicate — `{"field":"wins","op":"gte","value":10}` — for one condition. Use `all` (AND) or `any` (OR) groups for multiple or nested conditions. Operators: eq, ne, gt, gte, lt, lte, in, nin, like, ilike, nlike, nilike, contains, ncontains, startsWith, endsWith, isNull, isNotNull, isEmpty, isNotEmpty. Order is a sort spec `[{"field":"wins","direction":"desc"}]`. Query Rows returns every matching row when Limit is omitted (fails if the result exceeds 5MB — add a filter or a Limit). With a Limit, responses page: a non-null nextCursor means more rows exist — pass it back as the cursor. Columns to Return narrows each row to the selected columns (by stable id or name; one that no longer exists is skipped); leave it empty for every column.',

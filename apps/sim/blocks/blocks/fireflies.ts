@@ -707,7 +707,7 @@ export const FirefliesV2Block: BlockConfig<FirefliesResponse> = {
   type: 'fireflies_v2',
   name: 'Fireflies',
   description: 'Interact with Fireflies.ai meeting transcripts and recordings',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   integrationType: IntegrationType.Productivity,
   subBlocks: firefliesV2SubBlocks,
   tools: {

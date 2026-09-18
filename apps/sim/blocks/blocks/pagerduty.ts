@@ -5,6 +5,7 @@ import { getTrigger } from '@/triggers'
 export const PagerDutyBlock: BlockConfig = {
   type: 'pagerduty',
   name: 'PagerDuty',
+  hideFromToolbar: true,
   description: 'Manage incidents and on-call schedules with PagerDuty',
   triggerAllowed: true,
   longDescription:

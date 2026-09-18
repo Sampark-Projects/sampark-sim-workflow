@@ -9,6 +9,7 @@ export const SimWorkspaceEventBlock: BlockConfig = {
   // the constant.
   type: 'sim_workspace_event',
   name: 'Sim Workspace Events',
+  hideFromToolbar: true,
   description:
     'Run this workflow when workspace events occur: run errors or successes, deployments, and alert conditions like latency or cost spikes.',
   category: 'triggers',

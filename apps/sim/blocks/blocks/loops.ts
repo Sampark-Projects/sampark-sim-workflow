@@ -10,6 +10,7 @@ const CONTACT_FIELD = ['contactEmail', 'userId'] as const
 export const LoopsBlock: BlockConfig<LoopsResponse> = {
   type: 'loops',
   name: 'Loops',
+  hideFromToolbar: true,
   description: 'Manage contacts and send emails with Loops',
   authMode: AuthMode.ApiKey,
   longDescription:

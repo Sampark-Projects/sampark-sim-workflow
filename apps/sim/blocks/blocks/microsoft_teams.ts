@@ -19,6 +19,7 @@ const ATTACHMENT_FIELD = ['attachmentFiles', 'fileReferences'] as const
 export const MicrosoftTeamsBlock: BlockConfig<MicrosoftTeamsResponse> = {
   type: 'microsoft_teams',
   name: 'Microsoft Teams',
+  hideFromToolbar: true,
   description: 'Manage messages, reactions, and members in Teams',
   authMode: AuthMode.OAuth,
   longDescription:

@@ -7,6 +7,7 @@ import { getTrigger } from '@/triggers'
 export const TwilioSMSBlock: BlockConfig<TwilioSMSBlockOutput> = {
   type: 'twilio_sms',
   name: 'Twilio SMS',
+  hideFromToolbar: true,
   description: 'Send SMS messages',
   authMode: AuthMode.ApiKey,
   longDescription: 'Integrate Twilio into the workflow. Can send SMS messages.',

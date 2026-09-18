@@ -54,6 +54,7 @@ const LABEL_RESOURCE_OPERATIONS = ['add_label_resources', 'remove_label_resource
 export const JotformBlock: BlockConfig = {
   type: 'jotform',
   name: 'Jotform',
+  hideFromToolbar: true,
   description: 'Read submissions, manage forms, and wire up webhooks in Jotform',
   longDescription:
     'Integrate Jotform into your workflow to list and read form submissions with their answers resolved to question labels, build and edit forms and their questions, create shareable reports, register submission webhooks, and check account usage.',

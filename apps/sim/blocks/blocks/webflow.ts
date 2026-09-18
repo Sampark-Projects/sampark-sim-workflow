@@ -14,6 +14,7 @@ const ITEM_FIELD = ['itemSelector', 'manualItemId'] as const
 export const WebflowBlock: BlockConfig<WebflowResponse> = {
   type: 'webflow',
   name: 'Webflow',
+  hideFromToolbar: true,
   description: 'Manage Webflow CMS collections',
   authMode: AuthMode.OAuth,
   longDescription:

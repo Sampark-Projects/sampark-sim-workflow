@@ -1929,7 +1929,7 @@ export const ServiceNowV2Block: BlockConfig = {
   ...ServiceNowBlock,
   type: 'servicenow_v2',
   name: 'ServiceNow',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   sunset: undefined,
   tools: {
     ...ServiceNowBlock.tools,

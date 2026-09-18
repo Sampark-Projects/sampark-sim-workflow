@@ -144,6 +144,7 @@ function isBitbucketOperation(value: unknown): value is BitbucketOperation {
 export const BitbucketBlock: BlockConfig = {
   type: 'bitbucket',
   name: 'Bitbucket',
+  hideFromToolbar: true,
   description: 'Work with Bitbucket Cloud repositories, pull requests, and pipelines',
   longDescription:
     'Connect Bitbucket Cloud to inspect repositories and source, collaborate on pull requests, diagnose or control pipelines, and start workflows from repository and pull request events. OAuth is used for actions and automatic webhook management.',

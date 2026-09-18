@@ -5,6 +5,7 @@ import { IntegrationType } from '@/blocks/types'
 export const SearchBlock: BlockConfig = {
   type: 'search',
   name: 'Search',
+  hideFromToolbar: true,
   description: 'Search the web ($0.01 per search)',
   longDescription: 'Search the web using the Search tool. Each search costs $0.01 per query.',
   bgColor: '#3B82F6',

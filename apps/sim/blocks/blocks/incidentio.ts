@@ -29,6 +29,7 @@ function toTriState(value: unknown): boolean | undefined {
 export const IncidentioBlock: BlockConfig<IncidentioResponse> = {
   type: 'incidentio',
   name: 'incident.io',
+  hideFromToolbar: true,
   description: 'Manage incidents with incident.io',
   authMode: AuthMode.ApiKey,
   longDescription:

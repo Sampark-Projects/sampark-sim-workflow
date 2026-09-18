@@ -12,6 +12,7 @@ const getTranslationPrompt = (targetLanguage: string) =>
 export const TranslateBlock: BlockConfig = {
   type: 'translate',
   name: 'Translate',
+  hideFromToolbar: true,
   description: 'Translate text to any language',
   authMode: AuthMode.ApiKey,
   longDescription: 'Integrate Translate into the workflow. Can translate text to any language.',

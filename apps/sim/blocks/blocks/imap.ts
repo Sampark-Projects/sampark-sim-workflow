@@ -7,6 +7,7 @@ import { getTrigger } from '@/triggers'
 export const ImapBlock: BlockConfig = {
   type: 'imap',
   name: 'IMAP Email',
+  hideFromToolbar: true,
   description: 'Trigger workflows when new emails arrive via IMAP (works with any email provider)',
   longDescription:
     'Connect to any email server via IMAP protocol to trigger workflows when new emails are received. Supports Gmail, Outlook, Yahoo, and any other IMAP-compatible email provider.',
@@ -16,7 +17,6 @@ export const ImapBlock: BlockConfig = {
   icon: MailServerIcon,
   triggerAllowed: true,
   docsLink: 'https://docs.sim.ai/integrations/imap',
-  hideFromToolbar: false,
   canvasPresentation: {
     defaultTitle: 'IMAP Email',
     /* Server, port and credentials are how the block connects, not what it

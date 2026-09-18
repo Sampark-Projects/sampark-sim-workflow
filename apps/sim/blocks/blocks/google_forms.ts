@@ -15,6 +15,7 @@ const FORM_FIELD = ['formSelector', 'manualFormId'] as const
 export const GoogleFormsBlock: BlockConfig = {
   type: 'google_forms',
   name: 'Google Forms',
+  hideFromToolbar: true,
   description: 'Manage Google Forms and responses',
   longDescription:
     'Integrate Google Forms into your workflow. Read form structure, get responses, create forms, update content, and manage notification watches.',

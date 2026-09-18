@@ -7,6 +7,7 @@ import { fathomTriggerOptions } from '@/triggers/fathom/utils'
 export const FathomBlock: BlockConfig<FathomResponse> = {
   type: 'fathom',
   name: 'Fathom',
+  hideFromToolbar: true,
   description: 'Access meeting recordings, transcripts, and summaries',
   authMode: AuthMode.ApiKey,
   triggerAllowed: true,

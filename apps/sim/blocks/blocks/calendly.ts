@@ -28,6 +28,7 @@ function parseJsonArray(value: unknown, field: string): unknown {
 export const CalendlyBlock: BlockConfig<ToolResponse> = {
   type: 'calendly',
   name: 'Calendly',
+  hideFromToolbar: true,
   description: 'Manage Calendly scheduling and events',
   authMode: AuthMode.ApiKey,
   triggerAllowed: true,

@@ -6,6 +6,7 @@ import { getTrigger } from '@/triggers'
 export const ZendeskBlock: BlockConfig = {
   type: 'zendesk',
   name: 'Zendesk',
+  hideFromToolbar: true,
   description: 'Manage support tickets, users, and organizations in Zendesk',
   triggerAllowed: true,
   longDescription:

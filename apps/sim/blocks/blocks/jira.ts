@@ -16,6 +16,7 @@ const ATTACHMENT_FIELD = ['attachmentFiles', 'files'] as const
 export const JiraBlock: BlockConfig<JiraResponse> = {
   type: 'jira',
   name: 'Jira',
+  hideFromToolbar: true,
   description: 'Interact with Jira',
   authMode: AuthMode.OAuth,
   triggerAllowed: true,

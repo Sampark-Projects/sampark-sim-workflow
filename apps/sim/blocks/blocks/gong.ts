@@ -6,6 +6,7 @@ import { getTrigger } from '@/triggers'
 export const GongBlock: BlockConfig<GongResponse> = {
   type: 'gong',
   name: 'Gong',
+  hideFromToolbar: true,
   description: 'Revenue intelligence and conversation analytics',
   authMode: AuthMode.ApiKey,
   longDescription:

@@ -12,6 +12,7 @@ const DESTINATION_CALENDAR_FIELD = ['destinationCalendar', 'manualDestinationCal
 export const GoogleCalendarBlock: BlockConfig<GoogleCalendarResponse> = {
   type: 'google_calendar',
   name: 'Google Calendar (Legacy)',
+  hideFromToolbar: true,
   description: 'Manage Google Calendar events',
   authMode: AuthMode.OAuth,
   longDescription:
@@ -120,7 +121,6 @@ export const GoogleCalendarBlock: BlockConfig<GoogleCalendarResponse> = {
       },
     },
   },
-  hideFromToolbar: true,
   sunset: { status: 'legacy', replacedBy: 'google_calendar_v2' },
   subBlocks: [
     {
@@ -1031,7 +1031,7 @@ export const GoogleCalendarV2Block: BlockConfig<GoogleCalendarResponse> = {
   sunset: undefined,
   type: 'google_calendar_v2',
   name: 'Google Calendar',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   integrationType: IntegrationType.Productivity,
   tools: {
     ...GoogleCalendarBlock.tools,

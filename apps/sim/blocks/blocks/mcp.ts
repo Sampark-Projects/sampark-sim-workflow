@@ -11,6 +11,7 @@ export const McpBlock: BlockConfig<McpResponse> = {
   type: 'mcp',
   name: 'MCP',
   description: 'Discover and run authorized MCP operations',
+  hideFromToolbar: true,
   longDescription:
     'List or run operations from configured MCP servers and managed connections. Use a server or managed connection ID and an exact operation name, including references from upstream blocks.',
   docsLink: 'https://docs.sim.ai/agents/mcp',

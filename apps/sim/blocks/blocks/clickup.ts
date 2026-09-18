@@ -107,6 +107,7 @@ const ATTACHMENT_FIELD = ['attachmentFile', 'fileReference'] as const
 export const ClickUpBlock: BlockConfig<ClickUpResponse> = {
   type: 'clickup',
   name: 'ClickUp',
+  hideFromToolbar: true,
   description: 'Interact with ClickUp',
   authMode: AuthMode.OAuth,
   triggerAllowed: true,

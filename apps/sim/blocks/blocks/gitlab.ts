@@ -133,6 +133,7 @@ function parseTriState(raw: unknown): boolean | undefined {
 export const GitLabBlock: BlockConfig<GitLabResponse> = {
   type: 'gitlab',
   name: 'GitLab',
+  hideFromToolbar: true,
   description: 'Interact with GitLab projects, issues, merge requests, and pipelines',
   authMode: AuthMode.ApiKey,
   triggerAllowed: true,

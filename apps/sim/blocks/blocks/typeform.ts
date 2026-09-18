@@ -7,6 +7,7 @@ import { getTrigger } from '@/triggers'
 export const TypeformBlock: BlockConfig<TypeformResponse> = {
   type: 'typeform',
   name: 'Typeform',
+  hideFromToolbar: true,
   description: 'Interact with Typeform',
   authMode: AuthMode.ApiKey,
   longDescription:

@@ -7,6 +7,7 @@ import { getTrigger } from '@/triggers'
 export const RootlyBlock: BlockConfig<RootlyResponse> = {
   type: 'rootly',
   name: 'Rootly',
+  hideFromToolbar: true,
   description: 'Manage incidents, alerts, and on-call with Rootly',
   authMode: AuthMode.ApiKey,
   longDescription:

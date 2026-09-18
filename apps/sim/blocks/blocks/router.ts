@@ -267,6 +267,7 @@ interface RouterV2Response extends ToolResponse {
 export const RouterV2Block: BlockConfig<RouterV2Response> = {
   type: 'router_v2',
   name: 'Router',
+  hideFromToolbar: true,
   description: 'Route workflow based on context',
   authMode: AuthMode.ApiKey,
   docsLink: 'https://docs.sim.ai/workflows/blocks/router',

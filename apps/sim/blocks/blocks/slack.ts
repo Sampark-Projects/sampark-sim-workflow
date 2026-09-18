@@ -3224,7 +3224,7 @@ export const SlackV2Block: BlockConfig<SlackResponse> = {
     'Send and manage Slack messages, Agent Sessions, streamed replies, views, reactions, conversations, and canvases',
   longDescription:
     'Integrate Slack messaging and administration into a workflow. Custom Slack bots can manage Agent Sessions, stream incremental Markdown or structured chunks, react to Agent Session events, and configure Agent View suggested prompts. Standard messaging and management operations support both the Sim app and custom bot credentials.',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   sunset: undefined,
   canvasPresentation: {
     ...SlackBlock.canvasPresentation,

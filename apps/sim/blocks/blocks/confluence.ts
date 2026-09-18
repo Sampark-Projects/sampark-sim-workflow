@@ -431,7 +431,7 @@ export const ConfluenceV2Block: BlockConfig<ConfluenceResponse> = {
   sunset: undefined,
   type: 'confluence_v2',
   name: 'Confluence',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   canvasPresentation: {
     defaultTitle: 'Confluence',
     /*

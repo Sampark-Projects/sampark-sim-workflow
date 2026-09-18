@@ -15,6 +15,7 @@ const MEETING_FIELD = ['meetingSelector', 'meetingId'] as const
 export const ZoomBlock: BlockConfig<ZoomResponse> = {
   type: 'zoom',
   name: 'Zoom',
+  hideFromToolbar: true,
   description: 'Create and manage Zoom meetings and recordings',
   authMode: AuthMode.OAuth,
   longDescription:

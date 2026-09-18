@@ -8,6 +8,7 @@ import { getTrigger } from '@/triggers'
 export const HubSpotBlock: BlockConfig<HubSpotResponse> = {
   type: 'hubspot',
   name: 'HubSpot',
+  hideFromToolbar: true,
   description: 'Interact with HubSpot CRM or trigger workflows from HubSpot events',
   authMode: AuthMode.OAuth,
   longDescription:

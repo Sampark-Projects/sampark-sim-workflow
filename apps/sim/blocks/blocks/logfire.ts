@@ -77,6 +77,7 @@ const SEARCH_FILTER_FIELD = ['query', 'service', 'spanName'] as const
 export const LogfireBlock: BlockConfig<LogfireResponse> = {
   type: 'logfire',
   name: 'Logfire',
+  hideFromToolbar: true,
   description: 'Query traces, logs, and metrics in Pydantic Logfire',
   longDescription:
     'Integrate Pydantic Logfire into workflows. Run SQL over your observability data, search spans and logs with structured filters, pull an entire trace by ID, and confirm which project a read token targets.',

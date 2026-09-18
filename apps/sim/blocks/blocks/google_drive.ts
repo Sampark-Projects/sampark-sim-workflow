@@ -20,6 +20,7 @@ const TRIGGER_FOLDER_FIELD = ['folderId', 'manualFolderId'] as const
 export const GoogleDriveBlock: BlockConfig<GoogleDriveResponse> = {
   type: 'google_drive',
   name: 'Google Drive',
+  hideFromToolbar: true,
   description: 'Manage files, folders, and permissions',
   authMode: AuthMode.OAuth,
   longDescription:

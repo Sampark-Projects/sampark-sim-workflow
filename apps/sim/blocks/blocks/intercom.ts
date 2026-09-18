@@ -1519,7 +1519,7 @@ export const IntercomV2Block: BlockConfig = {
   type: 'intercom_v2',
   name: 'Intercom',
   integrationType: IntegrationType.Support,
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   subBlocks: [
     ...IntercomBlock.subBlocks,
     ...getTrigger('intercom_conversation_created').subBlocks,

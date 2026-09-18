@@ -138,6 +138,7 @@ function parseJsonObjectInput(value: unknown, label: string): Record<string, unk
 export const AshbyBlock: BlockConfig = {
   type: 'ashby',
   name: 'Ashby',
+  hideFromToolbar: true,
   description: 'Manage candidates, jobs, and applications in Ashby',
   longDescription:
     'Integrate Ashby into the workflow. Manage and search candidates, applications, jobs, users, and openings; transfer applications; upload resumes and candidate files; read application history and interview feedback; manage offers, notes, tags, stages, sources, and custom fields; and react to hiring lifecycle webhooks.',

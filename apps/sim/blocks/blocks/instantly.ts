@@ -59,6 +59,7 @@ const INSTANTLY_TRIGGER_IDS = [
 export const InstantlyBlock: BlockConfig<InstantlyResponse> = {
   type: 'instantly',
   name: 'Instantly',
+  hideFromToolbar: true,
   description: 'Manage Instantly leads, campaigns, emails, and lead lists',
   longDescription:
     'Integrate Instantly API V2 into workflows. Create, update, and list leads, manage lead interest status, delete leads in bulk, list, create, patch, activate, pause, and delete campaigns, reply to emails, and manage lead lists.',

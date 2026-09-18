@@ -16,6 +16,7 @@ const FULL_NAME_FIELD = ['firstName', 'lastName'] as const
 export const ClerkBlock: BlockConfig<ClerkResponse> = {
   type: 'clerk',
   name: 'Clerk',
+  hideFromToolbar: true,
   description: 'Manage users, organizations, and sessions in Clerk',
   longDescription:
     'Integrate Clerk authentication and user management into your workflow. Create, update, delete, ban, lock, and list users. Manage organizations, their memberships, and invitations. Monitor and control user sessions. Maintain allowlist/blocklist identifiers, JWT templates, and actor tokens.',

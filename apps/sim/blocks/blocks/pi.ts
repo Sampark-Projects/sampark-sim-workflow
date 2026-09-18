@@ -165,6 +165,7 @@ const piApiKeyCondition = (values?: Record<string, unknown>) =>
 export const PiBlock: BlockConfig<PiResponse> = {
   type: 'pi',
   name: 'Pi Coding Agent',
+  hideFromToolbar: true,
   description: 'Run an autonomous coding agent on a repo',
   authMode: AuthMode.ApiKey,
   longDescription:

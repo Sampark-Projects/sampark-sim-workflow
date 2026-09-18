@@ -4,6 +4,7 @@ import type { BlockConfig } from '@/blocks/types'
 export const WorkflowInputBlock: BlockConfig = {
   type: 'workflow_input',
   name: 'Workflow',
+  hideFromToolbar: true,
   description: 'Execute another workflow and map variables to its Start trigger schema.',
   longDescription: `Execute another child workflow and map variables to its Start trigger schema. Helps with modularizing workflows.`,
   bestPractices: `

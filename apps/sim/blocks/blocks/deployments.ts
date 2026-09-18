@@ -6,6 +6,7 @@ const WORKFLOW_FIELD = ['workflowSelector', 'manualWorkflowId'] as const
 export const DeploymentsBlock: BlockConfig = {
   type: 'deployments',
   name: 'Deployments',
+  hideFromToolbar: true,
   description: 'Manage workflow deployments',
   longDescription:
     'Deploy, undeploy, and roll back workflows in the current workspace. Promote a previous deployment version to live, list every version, or fetch the deployed workflow state for a specific version.',

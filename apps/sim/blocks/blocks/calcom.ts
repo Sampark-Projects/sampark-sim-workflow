@@ -13,6 +13,7 @@ const SCHEDULE_FIELD = ['scheduleSelector', 'scheduleId'] as const
 export const CalComBlock: BlockConfig<ToolResponse> = {
   type: 'calcom',
   name: 'Cal.com',
+  hideFromToolbar: true,
   description: 'Manage Cal.com bookings, event types, schedules, and availability',
   authMode: AuthMode.OAuth,
   triggerAllowed: true,

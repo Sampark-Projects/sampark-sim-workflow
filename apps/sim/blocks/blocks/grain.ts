@@ -546,7 +546,7 @@ export const GrainV2Block: BlockConfig = {
   ...GrainBlock,
   sunset: undefined,
   type: 'grain_v2',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   canvasPresentation: {
     defaultTitle: 'Grain',
     sentences: {

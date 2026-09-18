@@ -6,6 +6,7 @@ import { getTrigger } from '@/triggers'
 export const ResendBlock: BlockConfig = {
   type: 'resend',
   name: 'Resend',
+  hideFromToolbar: true,
   description: 'Send emails and manage contacts with Resend.',
   longDescription:
     'Integrate Resend into your workflow. Send emails, retrieve email status, manage contacts, and view domains. Requires API Key.',

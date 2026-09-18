@@ -8,6 +8,7 @@ import { getTrigger } from '@/triggers'
 export const SalesforceBlock: BlockConfig<SalesforceResponse> = {
   type: 'salesforce',
   name: 'Salesforce',
+  hideFromToolbar: true,
   description: 'Interact with Salesforce CRM',
   authMode: AuthMode.OAuth,
   longDescription:

@@ -66,6 +66,7 @@ const splitHandles = (value: unknown): string[] =>
 export const LinqBlock: BlockConfig = {
   type: 'linq',
   name: 'Linq',
+  hideFromToolbar: true,
   description: 'Send iMessage, SMS, and RCS messages and manage conversations with Linq',
   longDescription:
     'Reach people on iMessage, SMS, and RCS through Linq. Start chats, send messages with media, links, effects, and replies, send voice memos, react with tapbacks, manage group participants, check iMessage/RCS capability, configure contact cards, and subscribe to webhook events — all through a single Linq API key.',

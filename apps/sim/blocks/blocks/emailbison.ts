@@ -36,6 +36,7 @@ const EMAILBISON_TRIGGER_IDS = [
 export const EmailBisonBlock: BlockConfig<EmailBisonResponse> = {
   type: 'emailbison',
   name: 'Email Bison',
+  hideFromToolbar: true,
   description: 'Manage Email Bison leads, campaigns, replies, and tags',
   longDescription:
     'Integrate Email Bison into workflows. Create and update leads, manage campaigns, attach leads to campaigns, list replies, and organize leads with tags.',

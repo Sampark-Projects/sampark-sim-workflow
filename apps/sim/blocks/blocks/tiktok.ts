@@ -28,6 +28,7 @@ const VIDEO_FILE_FIELD = ['videoFile', 'videoFileRef'] as const
 export const TikTokBlock: BlockConfig<TikTokResponse> = {
   type: 'tiktok',
   name: 'TikTok',
+  hideFromToolbar: true,
   description: 'Access TikTok profiles and videos, and upload inbox drafts',
   authMode: AuthMode.OAuth,
   longDescription:
@@ -38,7 +39,6 @@ export const TikTokBlock: BlockConfig<TikTokResponse> = {
   bgColor: '#000000',
   icon: TikTokIcon,
   triggerAllowed: true,
-  hideFromToolbar: false,
   canvasPresentation: {
     defaultTitle: 'TikTok',
     sentences: {

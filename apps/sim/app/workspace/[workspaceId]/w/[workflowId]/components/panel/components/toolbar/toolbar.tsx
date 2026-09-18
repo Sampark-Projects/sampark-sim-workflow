@@ -860,7 +860,7 @@ export const Toolbar = memo(
               onContextMenu={handleItemContextMenu}
             />
           )}
-          <ToolbarSection
+          {/* <ToolbarSection
             label='Integrations'
             tooltip='Connect agents to external services'
             sectionKey='tools'
@@ -874,7 +874,7 @@ export const Toolbar = memo(
             onDragStart={handleDragStart}
             onItemClick={handleItemClick}
             onContextMenu={handleItemContextMenu}
-          />
+          /> */}
         </div>
 
         {/* Toolbar Item Context Menu */}

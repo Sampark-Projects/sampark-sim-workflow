@@ -334,7 +334,7 @@ export const GoogleSheetsV2Block: BlockConfig<GoogleSheetsV2Response> = {
   name: 'Google Sheets',
   description: 'Read, write, and update data with sheet selection',
   authMode: AuthMode.OAuth,
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   longDescription:
     'Integrate Google Sheets into the workflow with explicit sheet selection. Can read, write, append, update, clear data, create spreadsheets, get spreadsheet info, and copy sheets.',
   docsLink: 'https://docs.sim.ai/integrations/google_sheets',

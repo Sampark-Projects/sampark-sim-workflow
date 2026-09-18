@@ -322,6 +322,7 @@ export const ImageGeneratorBlock: BlockConfig<DalleResponse> = {
 export const ImageGeneratorV2Block: BlockConfig<ImageGenerationResponse> = {
   type: 'image_generator_v2',
   name: 'Image Generator',
+  hideFromToolbar: true,
   description: 'Generate images',
   authMode: AuthMode.ApiKey,
   longDescription:

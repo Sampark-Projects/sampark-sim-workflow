@@ -66,6 +66,7 @@ function parseCustomFields(value: unknown): Record<string, unknown> | undefined 
 export const ZohoDeskBlock: BlockConfig<ZohoDeskResponse> = {
   type: 'zoho_desk',
   name: 'Zoho Desk',
+  hideFromToolbar: true,
   description: 'Manage Zoho Desk tickets, comments, threads, and contacts',
   authMode: AuthMode.OAuth,
   triggerAllowed: true,

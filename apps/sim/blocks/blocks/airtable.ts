@@ -15,6 +15,7 @@ const TABLE_FIELD = ['tableSelector', 'tableId'] as const
 export const AirtableBlock: BlockConfig<AirtableResponse> = {
   type: 'airtable',
   name: 'Airtable',
+  hideFromToolbar: true,
   description: 'Read, create, and update Airtable',
   authMode: AuthMode.OAuth,
   longDescription:

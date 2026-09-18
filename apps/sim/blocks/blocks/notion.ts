@@ -962,7 +962,7 @@ export const NotionV2Block: BlockConfig<any> = {
     defaultTitle: 'Notion',
     sentences: NOTION_SENTENCES,
   },
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   subBlocks: [
     ...NotionBlock.subBlocks,
 

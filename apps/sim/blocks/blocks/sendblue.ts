@@ -26,6 +26,7 @@ const GROUP_RECIPIENT_FIELD = ['numbers', 'group_id'] as const
 export const SendblueBlock: BlockConfig = {
   type: 'sendblue',
   name: 'Sendblue',
+  hideFromToolbar: true,
   description: 'Send and receive iMessage and SMS',
   longDescription:
     'Send iMessages and SMS to individuals or groups, check whether a number supports iMessage, show typing indicators, and look up message status with Sendblue. Trigger workflows on inbound messages and delivery status updates.',

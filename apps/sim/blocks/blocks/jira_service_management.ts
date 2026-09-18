@@ -60,6 +60,7 @@ const REQUEST_TYPE_FIELD = ['requestTypeSelector', 'requestTypeId'] as const
 export const JiraServiceManagementBlock: BlockConfig<JsmResponse> = {
   type: 'jira_service_management',
   name: 'Jira Service Management',
+  hideFromToolbar: true,
   description: 'Interact with Jira Service Management',
   authMode: AuthMode.OAuth,
   longDescription:

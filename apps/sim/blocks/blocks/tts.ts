@@ -8,6 +8,7 @@ const VOICE_FIELD = ['voice', 'voiceId'] as const
 export const TtsBlock: BlockConfig<TtsBlockResponse> = {
   type: 'tts',
   name: 'Text-to-Speech',
+  hideFromToolbar: true,
   description: 'Convert text to speech using AI voices',
   authMode: AuthMode.ApiKey,
   longDescription:

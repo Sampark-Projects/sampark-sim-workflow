@@ -50,6 +50,7 @@ const GITHUB_PARAM_ALIASES: ReadonlyArray<{
 export const GitHubBlock: BlockConfig<GitHubResponse> = {
   type: 'github',
   name: 'GitHub (Legacy)',
+  hideFromToolbar: true,
   description: 'Interact with GitHub or trigger workflows from GitHub events',
   authMode: AuthMode.ApiKey,
   longDescription:
@@ -369,7 +370,6 @@ export const GitHubBlock: BlockConfig<GitHubResponse> = {
     },
   },
   triggerAllowed: true,
-  hideFromToolbar: true,
   sunset: { status: 'legacy', replacedBy: 'github_v2' },
   subBlocks: [
     {
@@ -2517,7 +2517,7 @@ export const GitHubV2Block: BlockConfig<GitHubResponse> = {
   sunset: undefined,
   type: 'github_v2',
   name: 'GitHub',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   integrationType: IntegrationType.DevOps,
   tools: {
     ...GitHubBlock.tools,

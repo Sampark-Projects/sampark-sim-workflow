@@ -74,6 +74,7 @@ const GROUP_FIELD = ['groupSelector', 'manualGroupId'] as const
 export const MondayBlock: BlockConfig<MondayResponse> = {
   type: 'monday',
   name: 'Monday',
+  hideFromToolbar: true,
   description: 'Manage Monday.com boards, items, and groups',
   authMode: AuthMode.OAuth,
   longDescription:

@@ -6,6 +6,7 @@ import { getTrigger } from '@/triggers'
 export const CirclebackBlock: BlockConfig = {
   type: 'circleback',
   name: 'Circleback',
+  hideFromToolbar: true,
   description: 'AI-powered meeting notes, action items, and transcripts',
   longDescription:
     'Integrate Circleback into your workflow to read meetings, notes, transcripts, and insights, search across meetings, manage action items and tags, and browse the people and companies you meet with. Circleback can also trigger workflows when meetings are processed.',

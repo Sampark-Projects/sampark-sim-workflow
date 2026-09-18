@@ -4,6 +4,7 @@ import type { BlockConfig } from '@/blocks/types'
 export const MemoryBlock: BlockConfig = {
   type: 'memory',
   name: 'Memory',
+  hideFromToolbar: true,
   description: 'Add memory store',
   longDescription:
     'Integrate Memory into the workflow. Can add, get a memory, get all memories, and delete memories.',

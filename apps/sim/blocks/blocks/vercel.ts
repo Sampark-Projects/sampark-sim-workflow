@@ -12,6 +12,7 @@ const DEPLOY_TARGET_PROJECT_FIELD = ['name', 'project'] as const
 export const VercelBlock: BlockConfig = {
   type: 'vercel',
   name: 'Vercel',
+  hideFromToolbar: true,
   description: 'Manage Vercel deployments, projects, and infrastructure',
   longDescription:
     'Integrate with Vercel to manage deployments, projects, domains, DNS records, environment variables, aliases, edge configs, teams, and more.',

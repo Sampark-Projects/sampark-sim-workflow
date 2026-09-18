@@ -1663,6 +1663,7 @@ export const VideoGeneratorV3Block: BlockConfig<VideoBlockResponse> = {
   sunset: undefined,
   type: 'video_generator_v3',
   name: 'Video Generator',
+  hideFromToolbar: true,
   description: 'Generate videos from text using AI',
   longDescription:
     'Generate high-quality videos from text prompts using leading AI providers. Supports Runway, Google Veo, Luma, MiniMax, and Fal.ai multi-model generation with provider-specific durations, aspect ratios, resolutions, prompt optimization, and native audio controls.',
@@ -1671,6 +1672,5 @@ export const VideoGeneratorV3Block: BlockConfig<VideoBlockResponse> = {
   integrationType: IntegrationType.AI,
   bgColor: '#181C1E',
   icon: VideoIcon,
-  hideFromToolbar: false,
   subBlocks: withFalAIModelOptions(VideoGeneratorV2Block.subBlocks, FALAI_LATEST_MODEL_OPTIONS),
 }

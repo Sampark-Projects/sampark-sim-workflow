@@ -149,6 +149,7 @@ const generateResponseFormat = (metrics: Metric[]) => {
 export const EvaluatorBlock: BlockConfig<EvaluatorResponse> = {
   type: 'evaluator',
   name: 'Evaluator',
+  hideFromToolbar: true,
   description: 'Evaluate content',
   longDescription:
     'This is a core workflow block. Assess content quality using customizable evaluation metrics and scoring criteria. Create objective evaluation frameworks with numeric scoring to measure performance across multiple dimensions.',

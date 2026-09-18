@@ -58,6 +58,7 @@ const MANAGE_LABEL_FIELD = ['labelSelector', 'manualLabelId'] as const
 export const GmailBlock: BlockConfig<GmailToolResponse> = {
   type: 'gmail',
   name: 'Gmail (Legacy)',
+  hideFromToolbar: true,
   description: 'Send, read, search, and move Gmail messages or trigger workflows from Gmail events',
   authMode: AuthMode.OAuth,
   longDescription:
@@ -137,7 +138,6 @@ export const GmailBlock: BlockConfig<GmailToolResponse> = {
       },
     },
   },
-  hideFromToolbar: true,
   sunset: { status: 'legacy', replacedBy: 'gmail_v2' },
   triggerAllowed: true,
   subBlocks: [
@@ -661,7 +661,7 @@ export const GmailV2Block: BlockConfig<GmailToolResponse> = {
   sunset: undefined,
   type: 'gmail_v2',
   name: 'Gmail',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   integrationType: IntegrationType.Email,
   tools: {
     ...GmailBlock.tools,

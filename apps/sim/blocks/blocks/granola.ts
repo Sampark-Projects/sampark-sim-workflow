@@ -5,6 +5,7 @@ import { getTrigger } from '@/triggers'
 export const GranolaBlock: BlockConfig = {
   type: 'granola',
   name: 'Granola',
+  hideFromToolbar: true,
   description: 'Access meeting notes, transcripts, and audit events from Granola',
   longDescription:
     'Integrate Granola into your workflow to retrieve meeting notes, summaries, attendees, and transcripts, review workspace audit events, and manage webhook endpoints. Granola can also trigger workflows when notes are generated, edited, or shared with you.',

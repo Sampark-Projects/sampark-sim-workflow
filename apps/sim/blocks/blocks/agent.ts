@@ -75,6 +75,8 @@ const getToolIdFromBlock = (blockType: string): string | undefined => {
 export const AgentBlock: BlockConfig<AgentResponse> = {
   type: 'agent',
   name: 'Agent',
+  // Hidden from the toolbar/search/catalog; existing placed instances still resolve.
+  hideFromToolbar: true,
   description: 'Build an agent',
   authMode: AuthMode.ApiKey,
   longDescription:

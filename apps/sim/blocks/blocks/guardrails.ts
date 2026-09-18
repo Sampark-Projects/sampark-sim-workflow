@@ -22,6 +22,7 @@ export interface GuardrailsResponse extends ToolResponse {
 export const GuardrailsBlock: BlockConfig<GuardrailsResponse> = {
   type: 'guardrails',
   name: 'Guardrails',
+  hideFromToolbar: true,
   description: 'Validate content with guardrails',
   longDescription:
     'Validate content using guardrails. Check if content is valid JSON, matches a regex pattern, detect hallucinations using RAG + LLM scoring, or detect PII.',

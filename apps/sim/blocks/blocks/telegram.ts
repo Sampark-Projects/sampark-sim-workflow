@@ -48,6 +48,7 @@ const DOCUMENT_FIELD = ['attachmentFiles', 'files'] as const
 export const TelegramBlock: BlockConfig<TelegramResponse> = {
   type: 'telegram',
   name: 'Telegram',
+  hideFromToolbar: true,
   description: 'Interact with Telegram',
   authMode: AuthMode.BotToken,
   longDescription:
