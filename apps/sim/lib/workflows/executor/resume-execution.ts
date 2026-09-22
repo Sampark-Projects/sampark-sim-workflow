@@ -127,11 +127,25 @@ function loadPausedExecutionSnapshot(
     throw new Error(INVALID_PAUSED_ATTRIBUTION_ERROR)
   }
 
+  /**
+   * On a re-pause the `paused_executions` row is re-keyed to the resume chain's
+   * root executionId, but the snapshot it carries still holds the ephemeral
+   * per-hop `executionId` that produced it. Accept either the root id or the
+   * snapshot's own `rootExecutionId` so the binding check does not reject a
+   * legitimately chained resume. Fresh runs carry neither and match by
+   * `executionId` as before.
+   */
+  const snapshotRootExecutionId = (snapshot.metadata as { rootExecutionId?: string })
+    .rootExecutionId
+  const executionIdMatches =
+    snapshot.metadata.executionId === expected.executionId ||
+    snapshotRootExecutionId === expected.executionId
+
   if (
     pausedExecution.workflowId !== expected.workflowId ||
     pausedExecution.executionId !== expected.executionId ||
     snapshot.metadata.workflowId !== expected.workflowId ||
-    snapshot.metadata.executionId !== expected.executionId
+    !executionIdMatches
   ) {
     throw new Error(PAUSED_EXECUTION_BINDING_ERROR)
   }

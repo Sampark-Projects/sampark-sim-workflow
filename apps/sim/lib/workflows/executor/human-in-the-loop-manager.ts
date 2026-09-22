@@ -895,7 +895,20 @@ export class PauseResumeManager {
       })
 
       if (result.status === 'paused') {
-        const effectiveExecutionId = result.metadata?.executionId ?? resumeExecutionId
+        /**
+         * Anchor the re-pause to the resume chain's root executionId — the id
+         * that owns the durable `workflow_execution_logs` row and the original
+         * `paused_executions` row. Keying the new pause state by the ephemeral
+         * `resumeExecutionId` instead (the old behavior) left an orphan
+         * `paused_executions` row with no matching log row, so the next resume
+         * 409'd in `claimResumeExecutionLog`. `rootExecutionId` is set on the
+         * resume snapshot metadata and preserved across every hop.
+         */
+        const effectiveExecutionId =
+          (result.metadata as { rootExecutionId?: string })?.rootExecutionId ??
+          pausedExecution.executionId ??
+          result.metadata?.executionId ??
+          resumeExecutionId
         if (!result.snapshotSeed) {
           logger.error('Missing snapshot seed for paused resume execution', {
             resumeExecutionId,
@@ -1424,9 +1437,24 @@ export class PauseResumeManager {
       })
     }
 
+    /**
+     * The first run's executionId, carried unchanged across every resume hop.
+     * Each resume run gets a fresh `executionId` (`resumeExecutionId`), but the
+     * durable `workflow_execution_logs` row and the `paused_executions` row stay
+     * keyed to this root id — so the resume URL a re-pausing block emits, and the
+     * `claimResumeExecutionLog` lookup on the next resume, must both use the root
+     * id, not the ephemeral per-hop one. Without this, resume #2 targets an
+     * executionId that has no log row and fails with a 409.
+     */
+    const rootExecutionId =
+      (baseSnapshot.metadata as { rootExecutionId?: string }).rootExecutionId ??
+      baseSnapshot.metadata.executionId ??
+      parentExecutionId
+
     const metadata = {
       ...baseSnapshot.metadata,
       executionId: resumeExecutionId,
+      rootExecutionId,
       requestId: baseSnapshot.metadata.requestId,
       startTime: new Date().toISOString(),
       userId: effectiveUserId,

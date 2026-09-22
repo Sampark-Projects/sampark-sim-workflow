@@ -1,0 +1,1 @@
+ALTER TABLE "itsm_organization_link" ADD COLUMN "sim_api_key_encrypted" text;

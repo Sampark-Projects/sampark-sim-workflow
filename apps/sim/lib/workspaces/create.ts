@@ -5,6 +5,7 @@ import { getPostgresConstraintName, getPostgresErrorCode } from '@sim/utils/erro
 import { generateId } from '@sim/utils/id'
 import { PlatformEvents } from '@/lib/core/telemetry'
 import type { DbOrTx } from '@/lib/db/types'
+import { enqueueItsmWorkspaceCreatedSync } from '@/lib/itsm/sync/outbox'
 import { buildDefaultWorkflowArtifacts } from '@/lib/workflows/defaults'
 import { saveWorkflowToNormalizedTables } from '@/lib/workflows/persistence/utils'
 import {
@@ -237,6 +238,10 @@ export async function createWorkspace(params: CreateWorkspaceParams) {
     workspaceId: created.id,
     userId: params.userId,
     name: params.name,
+  })
+  await enqueueItsmWorkspaceCreatedSync({
+    organizationId: created.organizationId,
+    workspaceId: created.id,
   })
 
   const invitePolicy = await getWorkspaceInvitePolicy({

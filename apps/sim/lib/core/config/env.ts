@@ -320,6 +320,9 @@ export const env = createEnv({
     // Admin API
     ADMIN_API_KEY:                         z.string().min(32).optional(),          // Admin API key for self-hosted GitOps access (generate with: openssl rand -hex 32)
 
+    // ITSM Integration
+    ITSM_API_KEY:                          z.string().min(32).optional(),          // Shared secret for the ITSM provisioning/token-exchange API (generate with: openssl rand -hex 32)
+
     // Mothership Admin
     MOTHERSHIP_API_ADMIN_KEY:              z.string().min(1).optional(),           // Admin API key for mothership/copilot admin endpoints
     MOTHERSHIP_DEV_URL:                    z.string().url().optional(),            // Mothership dev environment URL
@@ -480,6 +483,7 @@ export const env = createEnv({
     PORT:                                  z.number().optional(),                  // Main application port
     INTERNAL_API_BASE_URL:                 z.string().optional(),                  // Optional internal base URL for server-side self-calls; must include protocol if set (e.g., http://sim-app.namespace.svc.cluster.local:3000)
     ALLOWED_ORIGINS:                       z.string().optional(),                  // CORS allowed origins
+    DEV_FRAME_ANCESTORS:                   z.string().optional(),                  // Dev-only: comma-separated origins allowed to iframe /workspace pages (e.g. "http://localhost:4400"). Ignored unless NODE_ENV=development. Adds them to CSP frame-ancestors and drops X-Frame-Options for those page responses.
     PII_URL:                               z.string().optional(),                  // Presidio PII service base URL serving /analyze + /anonymize (standalone ECS service; default http://localhost:5001 for local dev)
     PII_MASK_CHUNK_CONCURRENCY:            z.coerce.number().int().positive().optional(), // Max in-flight mask-batch requests per redaction (default 64); tune to the Presidio fleet size behind the internal ALB, lower to 1 for a single instance
     PII_REF_CONCURRENCY:                   z.coerce.number().int().positive().optional(), // Max large-value refs hydrated+masked+re-stored in parallel per payload (default 4); multiplies with PII_MASK_CHUNK_CONCURRENCY for total in-flight Presidio load

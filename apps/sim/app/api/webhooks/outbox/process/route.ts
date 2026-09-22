@@ -14,6 +14,7 @@ import { DeadlineExceededError } from '@/lib/core/utils/deadline'
 import { generateRequestId } from '@/lib/core/utils/request'
 import { withRouteHandler } from '@/lib/core/utils/with-route-handler'
 import { directGrantOutboxHandlers } from '@/lib/invitations/direct-grant'
+import { itsmSyncOutboxHandlers } from '@/lib/itsm/sync/outbox'
 import { slackSearchOutboxHandlers } from '@/lib/knowledge/application/slack-search/outbox'
 import { getConnectorFailureDiagnostic } from '@/lib/knowledge/connectors/connector-error'
 import { knowledgeDocumentProcessingOutboxHandlers } from '@/lib/knowledge/documents/processing-outbox-handler'
@@ -42,6 +43,7 @@ const handlers = {
   ...enterpriseOwnerClaimOutboxHandlers,
   ...invitationMigrationOutboxHandlers,
   ...directGrantOutboxHandlers,
+  ...itsmSyncOutboxHandlers,
   ...knowledgeDocumentProcessingOutboxHandlers,
   ...organizationResourceCleanupOutboxHandlers,
   ...workspaceFileLiveDocOutboxHandlers,

@@ -6,6 +6,7 @@ import { OrchestrationError } from '@/lib/core/orchestration/types'
 import { PlatformEvents } from '@/lib/core/telemetry'
 import { MAX_FOLDERS_PER_WORKSPACE } from '@/lib/folders/constants'
 import { loadActiveFolderPathIndex } from '@/lib/folders/queries'
+import { enqueueItsmWorkflowCreatedSync } from '@/lib/itsm/sync/outbox'
 import { notifyWorkflowUpdated, notifyWorkspaceWorkflowsChanged } from '@/lib/realtime/notify'
 import { defineAuthorizedWorkflowUseCase } from '@/lib/workflows/application/authorized-workflow-use-case'
 import { workflowOperations } from '@/lib/workflows/application/operations'
@@ -97,7 +98,7 @@ export const createWorkflow = defineAuthorizedWorkflowUseCase({
       sortOrder: result.workflow.sortOrder,
     },
   }),
-  async afterSuccess({ result }) {
+  async afterSuccess({ result, context }) {
     await Promise.all([
       notifyWorkflowUpdated(result.workflow.id),
       notifyWorkspaceWorkflowsChanged(result.workflow.workspaceId),
@@ -115,5 +116,10 @@ export const createWorkflow = defineAuthorizedWorkflowUseCase({
         error,
       })
     }
+    await enqueueItsmWorkflowCreatedSync({
+      organizationId: context.workspaceOrganizationId,
+      workspaceId: result.workflow.workspaceId,
+      workflowId: result.workflow.id,
+    })
   },
 })

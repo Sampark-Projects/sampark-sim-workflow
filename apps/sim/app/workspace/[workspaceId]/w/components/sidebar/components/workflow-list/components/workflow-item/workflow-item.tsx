@@ -501,12 +501,12 @@ export const WorkflowItem = memo(function WorkflowItem({
         onDelete={handleOpenDeleteModal}
         showOpenInNewTab={!isMixedSelection && selectedWorkflows.size <= 1}
         showRename={!isMixedSelection && selectedWorkflows.size <= 1}
-        showDuplicate={true}
+        showDuplicate={false}
         showExport={true}
         disableRename={!userPermissions.canEdit || effectiveLocked}
         disableDuplicate={!userPermissions.canEdit || isDuplicatingSelection}
         disableExport={!userPermissions.canEdit}
-        showDelete={userPermissions.canEdit}
+        showDelete={false}
         disableDelete={!canDeleteSelection || effectiveLocked}
         onToggleLock={handleToggleLock}
         showLock={!isMixedSelection && selectedWorkflows.size <= 1}

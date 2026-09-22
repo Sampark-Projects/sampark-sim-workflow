@@ -102,7 +102,16 @@ export class HumanInTheLoopBlockHandler implements BlockHandler {
       const contextId = generatePauseContextId(block.id, nodeMetadata, loopScope)
       const timestamp = new Date().toISOString()
 
-      const executionId = ctx.executionId ?? ctx.metadata?.executionId
+      /**
+       * On a resume run `ctx.executionId` is the ephemeral per-hop id, which has
+       * no `workflow_execution_logs` row; the resume chain is anchored to the
+       * first run's id, carried on `metadata.rootExecutionId`. Emit the resume
+       * URL with that anchor so the next resume's `claimResumeExecutionLog`
+       * lookup succeeds. Fresh (non-resume) runs have no `rootExecutionId` and
+       * fall back to `executionId`, unchanged.
+       */
+      const executionId =
+        ctx.metadata?.rootExecutionId ?? ctx.executionId ?? ctx.metadata?.executionId
       const workflowId = ctx.workflowId
 
       let resumeLinks: typeof pauseMetadata.resumeLinks | undefined

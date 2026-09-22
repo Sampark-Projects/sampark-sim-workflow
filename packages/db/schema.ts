@@ -6855,6 +6855,73 @@ export const scimUserTombstone = pgTable(
   })
 )
 
+/**
+ * One provisioned ITSM tenant, linking its `customerId` to a Sim organization
+ * and the headless owner user created for it.
+ *
+ * `customerId` is the idempotency key for provisioning: a repeat call with the
+ * same id must return this row rather than create a second organization.
+ */
+export const itsmOrganizationLink = pgTable(
+  'itsm_organization_link',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    customerId: text('customer_id').notNull(),
+    simUserId: text('sim_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    /** `active` or `disabled`. Disabling refuses token mints and stops sync delivery. */
+    status: text('status').notNull().default('active'),
+    webhookUrl: text('webhook_url'),
+    /** `encryptSecret`-encrypted HMAC signing key for outbound sync webhooks. */
+    webhookSigningSecretEncrypted: text('webhook_signing_secret_encrypted'),
+    /**
+     * `encryptSecret`-encrypted personal Sim API key for `simUserId`, minted at
+     * provisioning. Returned (decrypted) in every provisioning response —
+     * including idempotent replays — so ITSM's backend can call Sim's public
+     * execution API (`/api/workflows/{id}/execute`, `/paused`, resume)
+     * directly, scoped to this tenant's own organization regardless of how
+     * many workspaces/workflows they create. Independent of Sim's own
+     * `api_key.key_hash` (one-way, for authenticating inbound requests) —
+     * this is a separate, two-way-encrypted copy purely so the trusted
+     * `x-itsm-key` caller can retrieve it.
+     */
+    simApiKeyEncrypted: text('sim_api_key_encrypted'),
+    lastWebhookDeliveredAt: timestamp('last_webhook_delivered_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    organizationUnique: uniqueIndex('itsm_organization_link_organization_unique').on(
+      table.organizationId
+    ),
+    customerIdUnique: uniqueIndex('itsm_organization_link_customer_id_unique').on(table.customerId),
+    simUserIdUnique: uniqueIndex('itsm_organization_link_sim_user_id_unique').on(table.simUserId),
+  })
+)
+
+/**
+ * Poll-based debounce state for syncing one workflow's edits to ITSM.
+ *
+ * Edits can be persisted from `apps/sim` or from the realtime collaboration
+ * server, both of which bump `workflow.updatedAt` but neither of which can
+ * call the other's dispatch code — so a scheduled job diffs against
+ * `lastSyncedUpdatedAt` instead of hooking every write path.
+ */
+export const itsmWorkflowSyncState = pgTable('itsm_workflow_sync_state', {
+  workflowId: text('workflow_id')
+    .primaryKey()
+    .references(() => workflow.id, { onDelete: 'cascade' }),
+  lastSyncedAt: timestamp('last_synced_at'),
+  /** The `workflow.updatedAt` value as of the last successful sync. */
+  lastSyncedUpdatedAt: timestamp('last_synced_updated_at'),
+  lastAttemptAt: timestamp('last_attempt_at'),
+  lastError: text('last_error'),
+})
+
 /** A Group resource one connection provisioned. */
 export const scimGroup = pgTable(
   'scim_group',

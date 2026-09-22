@@ -273,9 +273,39 @@ export function generateRuntimeCSP(): string {
       ...privacyDomains,
       ...termsDomains,
     ],
+
+    // Dev-only: allow a local front end (e.g. an embedding app on another port)
+    // to iframe the workspace/editor. Ignored entirely unless NODE_ENV is
+    // development, so a hosted build keeps `frame-ancestors 'self'`.
+    'frame-ancestors': [...getDevFrameAncestors()],
   }
 
   return buildCSPString(runtimeDirectives)
+}
+
+/**
+ * Extra `frame-ancestors` origins from `DEV_FRAME_ANCESTORS`, only in
+ * development. Always includes `'self'`. Each entry must be a valid origin.
+ */
+export function getDevFrameAncestors(): string[] {
+  const base = ["'self'"]
+  if (!isDev) return base
+  const raw = getEnv('DEV_FRAME_ANCESTORS')
+  if (!raw) return base
+  const extra = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => {
+      if (!s) return false
+      try {
+        // eslint-disable-next-line no-new
+        new URL(s)
+        return true
+      } catch {
+        return false
+      }
+    })
+  return [...base, ...extra]
 }
 
 /**

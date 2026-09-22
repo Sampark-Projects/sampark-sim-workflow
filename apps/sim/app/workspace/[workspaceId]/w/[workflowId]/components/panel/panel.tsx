@@ -760,23 +760,6 @@ export const Panel = memo(function Panel() {
                     <Download />
                     Export workflow
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={handleDuplicateWorkflow}
-                    disabled={!userPermissions.canEdit || isDuplicating}
-                  >
-                    <Duplicate />
-                    Duplicate workflow
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setIsDeleteModalOpen(true)
-                    }}
-                    disabled={!canMutateWorkflow || Object.keys(workflows).length <= 1}
-                  >
-                    <Trash />
-                    Delete workflow
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button
@@ -786,44 +769,6 @@ export const Panel = memo(function Panel() {
               >
                 {isChatOpen ? <BubbleChatClose /> : <BubbleChatPreview />}
               </Button>
-            </div>
-
-            {/* Deploy and Run */}
-            <div className='flex gap-1.5'>
-              <Deploy
-                activeWorkflowId={activeWorkflowId}
-                userPermissions={userPermissions}
-                disabled={workflowLocked}
-              />
-              <Chip
-                variant={isExecuting ? undefined : 'primary'}
-                active={isExecuting}
-                onClick={isExecuting ? cancelWorkflow : () => runWorkflow()}
-                disabled={!isExecuting && isButtonDisabled}
-                aria-label={isExecuting ? 'Stop' : 'Run'}
-                leftAdornment={
-                  <span
-                    aria-hidden='true'
-                    className='inline-flex size-5 shrink-0 items-center justify-center overflow-visible'
-                  >
-                    <ThinkingLoader
-                      variant={isExecuting ? undefined : 'play'}
-                      startVariant='play'
-                      startHoldMs={140}
-                      size={20}
-                      morphDurationMs={isExecuting ? 650 : 180}
-                      tone='inherit'
-                    />
-                  </span>
-                }
-              >
-                <span className='inline-grid'>
-                  <span aria-hidden='true' className='invisible col-start-1 row-start-1'>
-                    Stop
-                  </span>
-                  <span className='col-start-1 row-start-1'>{isExecuting ? 'Stop' : 'Run'}</span>
-                </span>
-              </Chip>
             </div>
           </div>
 

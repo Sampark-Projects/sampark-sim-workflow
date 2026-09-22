@@ -268,6 +268,14 @@ export function serializePauseSnapshot(
     requestId:
       metadataFromContext?.requestId ?? context.executionId ?? context.workflowId ?? 'unknown',
     executionId: context.executionId ?? 'unknown',
+    /**
+     * The resume chain's root executionId, carried across every hop. Each resume
+     * run's `executionId` is ephemeral (a fresh id per hop, with no durable
+     * `workflow_execution_logs` row), so the paused-execution binding check and
+     * the next resume's log-claim must key off this stable id instead. Absent on
+     * a first run's snapshot; set once the first resume runs.
+     */
+    rootExecutionId: metadataFromContext?.rootExecutionId,
     workflowId: context.workflowId,
     workspaceId,
     userId: metadataFromContext?.userId ?? '',

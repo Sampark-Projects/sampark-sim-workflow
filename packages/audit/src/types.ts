@@ -257,6 +257,8 @@ export const AuditAction = {
   SCIM_GROUP_DELETED: 'scim_group.deleted',
   SCIM_GROUP_MAPPING_UPSERTED: 'scim_group_mapping.upserted',
   SCIM_GROUP_MAPPING_DELETED: 'scim_group_mapping.deleted',
+  // ITSM tenant provisioning
+  ITSM_ORGANIZATION_PROVISIONED: 'itsm_organization.provisioned',
 } as const
 
 export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction]

@@ -22,6 +22,13 @@ import type { SubflowType } from '@/stores/workflows/workflow/types'
 export interface ExecutionMetadata {
   requestId: string
   executionId: string
+  /**
+   * The first run's executionId, stable across every resume hop. Set on the
+   * resume snapshot in `human-in-the-loop-manager` so a re-pausing block emits a
+   * resume URL keyed to the durable `workflow_execution_logs` row rather than
+   * the ephemeral per-hop `executionId`. Absent on fresh (non-resume) runs.
+   */
+  rootExecutionId?: string
   workflowId: string
   workspaceId: string
   userId: string

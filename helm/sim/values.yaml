@@ -217,6 +217,9 @@ app:
     # Admin API Configuration
     ADMIN_API_KEY: ""                                    # Admin API key for organization/user management (generate with: openssl rand -hex 32)
 
+    # ITSM Integration
+    ITSM_API_KEY: ""                                     # Shared secret for the ITSM provisioning/token-exchange API (generate with: openssl rand -hex 32)
+
     # Enterprise feature set (defaults to "false" via envDefaults — set "true" here to enable)
     # ENTERPRISE_ENABLED turns on every enterprise feature; the per-feature flags
     # below override it either way. See docs: /platform/enterprise/self-hosted
@@ -1565,6 +1568,17 @@ cronjobs:
       name: workspace-file-search-dispatch
       schedule: "*/1 * * * *"
       path: "/api/cron/workspace-file-search-dispatch"
+      concurrencyPolicy: Forbid
+      successfulJobsHistoryLimit: 3
+      failedJobsHistoryLimit: 1
+
+    # Debounced sync of ITSM-linked workflow edits (see itsm.workflow-updated).
+    # A no-op scan on deployments with no ITSM organization links configured.
+    itsmSync:
+      enabled: true
+      name: itsm-sync
+      schedule: "*/1 * * * *"
+      path: "/api/cron/itsm-sync"
       concurrencyPolicy: Forbid
       successfulJobsHistoryLimit: 3
       failedJobsHistoryLimit: 1

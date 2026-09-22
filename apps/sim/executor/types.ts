@@ -364,6 +364,12 @@ interface ExecutionMetadata {
   capabilityGovernedUserId?: string | null
   principal?: WorkflowExecutionPrincipal
   executionId?: string
+  /**
+   * The first run's executionId, stable across every resume hop. Set on the
+   * resume snapshot so a re-pausing block emits a resume URL keyed to the
+   * durable log row rather than the ephemeral per-hop executionId.
+   */
+  rootExecutionId?: string
   triggerType?: string
   triggerBlockId?: string
   useDraftState?: boolean

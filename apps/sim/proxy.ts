@@ -5,7 +5,7 @@ import { APP_ENTRY_PATH, isAppSurfacePath } from '@/lib/navigation/paths'
 import { isOAuthAuthorizationCallback, resolveAuthRedirect } from '@/app/(auth)/auth-redirect'
 import { getEnv } from './lib/core/config/env'
 import { isAuthDisabled, isDev, isHosted } from './lib/core/config/env-flags'
-import { generateRuntimeCSP } from './lib/core/security/csp'
+import { generateRuntimeCSP, getDevFrameAncestors } from './lib/core/security/csp'
 import { getClientIp } from './lib/core/utils/request'
 import { isNonCanonicalSimHost } from './lib/core/utils/urls'
 
@@ -149,6 +149,24 @@ const CORS_RULES: readonly CorsRule[] = [
       credentials: false,
       methods: 'GET,POST,OPTIONS,PUT',
       headers: WORKFLOW_EXECUTE_HEADERS,
+    }),
+  },
+  {
+    /**
+     * Dev-only: let a local front end on another port (e.g. an embedding app on
+     * :4400) poll a workflow's paused runs and post resume decisions with an
+     * API key. These endpoints are API-key authed and take no cookies, so
+     * reflecting the request origin without credentials matches the security
+     * profile of the execute rule above. Never active outside `isDev`.
+     */
+    match: (p) =>
+      isDev &&
+      (/^\/api\/workflows\/[^/]+\/paused(\/[^/]+)?$/.test(p) || p.startsWith('/api/resume/')),
+    policy: (request) => ({
+      origin: request.headers.get('origin') || '*',
+      credentials: false,
+      methods: 'GET,POST,OPTIONS',
+      headers: DEFAULT_API_ALLOWED_HEADERS,
     }),
   },
   {
