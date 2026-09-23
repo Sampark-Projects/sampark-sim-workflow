@@ -27,13 +27,6 @@ const itsmProvisionOrganizationResponseSchema = itsmSingleResponseSchema(
     organizationId: z.string(),
     simUserId: z.string(),
     customerId: z.string(),
-    /**
-     * Personal Sim API key for `simUserId`, returned on every call including
-     * idempotent replays — not shown again anywhere else. Scoped to the
-     * tenant's whole organization; use it to call Sim's public execution API
-     * (`/api/workflows/{id}/execute`, `/paused`, resume) directly.
-     */
-    simApiKey: z.string(),
     /** False when this call found an existing link and returned it unchanged. */
     created: z.boolean(),
   })

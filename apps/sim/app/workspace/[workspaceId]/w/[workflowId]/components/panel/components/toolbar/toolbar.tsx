@@ -830,7 +830,7 @@ export const Toolbar = memo(
           />
           <ToolbarSection
             label='Core Blocks'
-            tooltip='Core building blocks for agent logic'
+            tooltip='Core building blocks for logic'
             sectionKey='blocks'
             items={filteredBlocks}
             isTrigger={false}
@@ -846,7 +846,7 @@ export const Toolbar = memo(
           {allCustomBlocks.length > 0 && (
             <ToolbarSection
               label='Custom Blocks'
-              tooltip='Workflows published as reusable blocks across your organization'
+              tooltip='Custom building blocks for your workflow'
               sectionKey='customBlocks'
               items={filteredCustomBlocks}
               isTrigger={false}

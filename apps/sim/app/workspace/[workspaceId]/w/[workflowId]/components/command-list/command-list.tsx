@@ -1,14 +1,11 @@
 'use client'
 
 import { useCallback } from 'react'
-import { Button, cn, handleKeyboardActivation, Library } from '@sim/emcn'
-import { Search } from '@sim/emcn/icons'
+import { Button, cn, handleKeyboardActivation } from '@sim/emcn'
 import { createLogger } from '@sim/logger'
 import Image from 'next/image'
-import { useParams, useRouter } from 'next/navigation'
-import { AgentIcon } from '@/components/icons'
+import { StartIcon } from '@/components/icons'
 import { usePreventZoom } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks'
-import { useSearchModalStore } from '@/stores/modals/search/store'
 
 const logger = createLogger('WorkflowCommandList')
 
@@ -29,19 +26,9 @@ interface CommandItem {
  */
 const commands: CommandItem[] = [
   {
-    label: 'New Agent',
-    icon: AgentIcon,
-    shortcut: ['⇧', 'A'],
-  },
-  {
-    label: 'Logs',
-    icon: Library,
-    shortcut: 'L',
-  },
-  {
-    label: 'Search Blocks',
-    icon: Search,
-    shortcut: 'K',
+    label: 'Start Trigger',
+    icon: StartIcon,
+    shortcut: ['⇧', 'S'],
   },
 ]
 
@@ -50,55 +37,33 @@ const commands: CommandItem[] = [
  * Centered on the screen for empty workflows
  */
 export function CommandList() {
-  const params = useParams()
-  const router = useRouter()
-  const openSearchModal = useSearchModalStore((s) => s.open)
   const preventZoomRef = usePreventZoom()
-
-  const workspaceId = params.workspaceId as string | undefined
 
   /**
    * Handle click on a command row.
    *
-   * Mirrors the behavior of the corresponding global keyboard shortcuts:
-   * - New Agent: add an agent block to the canvas
-   * - Logs: navigate to workspace logs
-   * - Search Blocks: open the universal search modal
+   * Mirrors the behavior of the corresponding global keyboard shortcut:
+   * - Start Trigger: add a starter block to the canvas
    *
    * @param label - Command label that was clicked.
    */
-  const handleCommandClick = useCallback(
-    (label: string) => {
-      try {
-        switch (label) {
-          case 'New Agent': {
-            const event = new CustomEvent('add-block-from-toolbar', {
-              detail: { type: 'agent', enableTriggerMode: false },
-            })
-            window.dispatchEvent(event)
-            return
-          }
-          case 'Logs': {
-            if (!workspaceId) {
-              logger.warn('No workspace ID found, cannot navigate to logs from command list')
-              return
-            }
-            router.push(`/workspace/${workspaceId}/logs`)
-            return
-          }
-          case 'Search Blocks': {
-            openSearchModal()
-            return
-          }
-          default:
-            logger.warn('Unknown command label clicked in command list', { label })
+  const handleCommandClick = useCallback((label: string) => {
+    try {
+      switch (label) {
+        case 'Start Trigger': {
+          const event = new CustomEvent('add-block-from-toolbar', {
+            detail: { type: 'starter', enableTriggerMode: false },
+          })
+          window.dispatchEvent(event)
+          return
         }
-      } catch (error) {
-        logger.error('Failed to handle command click in command list', { error, label })
+        default:
+          logger.warn('Unknown command label clicked in command list', { label })
       }
-    },
-    [router, workspaceId, openSearchModal]
-  )
+    } catch (error) {
+      logger.error('Failed to handle command click in command list', { error, label })
+    }
+  }, [])
 
   /**
    * Handle drag-over events from the toolbar.

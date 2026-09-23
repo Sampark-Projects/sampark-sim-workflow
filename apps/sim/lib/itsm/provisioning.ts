@@ -5,29 +5,19 @@ import { createLogger } from '@sim/logger'
 import { generateId } from '@sim/utils/id'
 import { APIError } from 'better-auth/api'
 import { eq, sql } from 'drizzle-orm'
-import { performCreatePersonalApiKey } from '@/lib/api-key/orchestration'
 import { auth } from '@/lib/auth'
 import {
   createOrganizationWithOwnerTx,
   OrganizationSlugTakenError,
 } from '@/lib/billing/organizations/create-organization'
 import type { DbOrTx } from '@/lib/db/types'
-import { decryptItsmWebhookSecret, encryptItsmWebhookSecret } from '@/lib/itsm/encryption'
+import { encryptItsmWebhookSecret } from '@/lib/itsm/encryption'
 import { deleteUserAccount } from '@/lib/users/account-deletion'
 
 const logger = createLogger('ItsmProvisioning')
 
 /** Bounds the advisory-lock wait so a stuck holder raises rather than hangs the request. */
 const ITSM_PROVISION_LOCK_TIMEOUT_MS = 10_000
-
-/**
- * Name of the personal Sim API key minted per tenant. `performCreatePersonalApiKey`
- * refuses a second key with the same (userId, name) — the recovery name only
- * fires if a prior attempt minted a key but crashed before persisting its
- * encrypted copy here, so it deliberately never collides with the primary name.
- */
-const ITSM_API_KEY_NAME = 'ITSM Integration'
-const ITSM_API_KEY_RECOVERY_NAME = 'ITSM Integration (recovery)'
 
 export interface ProvisionItsmOrganizationInput {
   customerId: string
@@ -43,13 +33,6 @@ export interface ProvisionItsmOrganizationResult {
   organizationId: string
   simUserId: string
   customerId: string
-  /**
-   * Personal Sim API key for `simUserId`, decrypted — returned on every call,
-   * including idempotent replays. Scoped to this tenant's whole organization
-   * (every workspace/workflow they create), for calling Sim's public
-   * execution API directly. Not shown again anywhere else — store it.
-   */
-  simApiKey: string
   /** False when this call found an existing link and returned it unchanged (idempotent replay). */
   created: boolean
 }
@@ -61,25 +44,6 @@ export class ItsmEmailConflictError extends Error {
   }
 }
 
-/** Mints a personal Sim API key for `userId`, encrypts it, and persists it onto the link row. */
-async function mintAndStoreSimApiKey(customerId: string, userId: string): Promise<string> {
-  let minted = await performCreatePersonalApiKey({ userId, name: ITSM_API_KEY_NAME })
-  if (!minted.success && minted.errorCode === 'conflict') {
-    minted = await performCreatePersonalApiKey({ userId, name: ITSM_API_KEY_RECOVERY_NAME })
-  }
-  if (!minted.success || !minted.key) {
-    throw new Error(minted.error || 'Failed to mint a personal Sim API key for ITSM')
-  }
-
-  const simApiKeyEncrypted = await encryptItsmWebhookSecret(minted.key.key)
-  await db
-    .update(itsmOrganizationLink)
-    .set({ simApiKeyEncrypted })
-    .where(eq(itsmOrganizationLink.customerId, customerId))
-
-  return minted.key.key
-}
-
 async function findLinkByCustomerId(
   customerId: string
 ): Promise<ProvisionItsmOrganizationResult | null> {
@@ -88,25 +52,16 @@ async function findLinkByCustomerId(
       organizationId: itsmOrganizationLink.organizationId,
       simUserId: itsmOrganizationLink.simUserId,
       customerId: itsmOrganizationLink.customerId,
-      simApiKeyEncrypted: itsmOrganizationLink.simApiKeyEncrypted,
     })
     .from(itsmOrganizationLink)
     .where(eq(itsmOrganizationLink.customerId, customerId))
     .limit(1)
   if (!existing) return null
 
-  // Self-healing: a prior attempt may have committed the org/user/link but
-  // crashed before the API key was minted and persisted. Backfill it now
-  // rather than returning a result with no usable credential.
-  const simApiKey = existing.simApiKeyEncrypted
-    ? await decryptItsmWebhookSecret(existing.simApiKeyEncrypted)
-    : await mintAndStoreSimApiKey(existing.customerId, existing.simUserId)
-
   return {
     organizationId: existing.organizationId,
     simUserId: existing.simUserId,
     customerId: existing.customerId,
-    simApiKey,
     created: false,
   }
 }
@@ -219,10 +174,9 @@ export async function provisionItsmOrganization(
     }
 
     // The transaction committed: organization, membership, and link row all
-    // exist now. A failure past this point (audit, key minting) must not
-    // trigger the orphan-account cleanup below — the account legitimately
-    // owns a real organization, and a retry's fast path self-heals a missing
-    // key instead.
+    // exist now. A failure past this point (audit) must not trigger the
+    // orphan-account cleanup below — the account legitimately owns a real
+    // organization.
     createdAccount = false
 
     await recordAuditOnce(`itsm-provision:${customerId}`, {
@@ -235,12 +189,10 @@ export async function provisionItsmOrganization(
       metadata: { customerId, simUserId: userId },
     })
 
-    const simApiKey = await mintAndStoreSimApiKey(customerId, userId)
     return {
       organizationId: result.organizationId,
       simUserId: result.simUserId,
       customerId,
-      simApiKey,
       created: result.created,
     }
   } catch (error) {

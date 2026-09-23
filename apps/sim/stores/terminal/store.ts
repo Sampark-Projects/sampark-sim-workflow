@@ -6,7 +6,7 @@ import type { TerminalState } from './types'
 export const useTerminalStore = create<TerminalState>()(
   persist(
     (set) => ({
-      terminalHeight: TERMINAL_HEIGHT.DEFAULT,
+      terminalHeight: TERMINAL_HEIGHT.MIN,
       lastExpandedHeight: TERMINAL_HEIGHT.DEFAULT,
       /**
        * Updates the terminal height and synchronizes the CSS custom property.

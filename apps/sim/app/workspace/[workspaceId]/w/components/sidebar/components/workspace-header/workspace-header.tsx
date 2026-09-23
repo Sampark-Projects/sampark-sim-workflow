@@ -16,7 +16,6 @@ import {
   DropdownMenuTrigger,
   OverflowText,
   Plus,
-  Send,
   Skeleton,
   scrollFadeAttributes,
   scrollFadeClass,
@@ -763,25 +762,6 @@ function WorkspaceHeaderImpl({
                       New workspace
                     </Chip>
                   </DisabledReasonTooltip>
-                  {userPermissions.canAdmin && (
-                    <DisabledReasonTooltip reason={inviteDisabledReason}>
-                      <Chip
-                        leftIcon={Send}
-                        onClick={() => {
-                          setIsWorkspaceMenuOpen(false)
-                          if (isInvitationsDisabled) {
-                            if (billingEnabled) navigateToSettings({ section: 'billing' })
-                            return
-                          }
-                          setIsInviteModalOpen(true)
-                        }}
-                        fullWidth
-                        className='select-none'
-                      >
-                        Invite teammates
-                      </Chip>
-                    </DisabledReasonTooltip>
-                  )}
                   <ViewInvitationsMenuItem
                     onOpen={() => {
                       setIsWorkspaceMenuOpen(false)
