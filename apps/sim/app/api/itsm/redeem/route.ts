@@ -1,6 +1,7 @@
 import { createLogger } from '@sim/logger'
 import { type NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { env } from '@/lib/core/config/env'
 import { withRouteHandler } from '@/lib/core/utils/with-route-handler'
 
 const logger = createLogger('ItsmRedeemAPI')
@@ -64,7 +65,11 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
     )
   }
 
-  const redirectUrl = new URL(redirectParam, request.nextUrl.origin)
+  // Built from the app's own configured public origin, not `request.nextUrl.origin` —
+  // behind a reverse proxy that doesn't forward the original Host header, the request's
+  // own origin resolves to the container's bind address (e.g. http://0.0.0.0:3000)
+  // instead of the public domain, sending the browser to an unreachable URL.
+  const redirectUrl = new URL(redirectParam, env.NEXT_PUBLIC_APP_URL)
   const response = NextResponse.redirect(redirectUrl, 303)
   const verifyHeaders = verifyResponse.headers as Headers & { getSetCookie?: () => string[] }
   for (const cookie of verifyHeaders.getSetCookie?.() ?? []) {
