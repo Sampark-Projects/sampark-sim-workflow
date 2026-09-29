@@ -274,25 +274,15 @@ export function generateRuntimeCSP(): string {
       ...termsDomains,
     ],
 
-    // Dev-only: allow a local front end (e.g. an embedding app on another port)
-    // to iframe the workspace/editor. Ignored entirely unless NODE_ENV is
-    // development, so a hosted build keeps `frame-ancestors 'self'`.
-    'frame-ancestors': [...getDevFrameAncestors()],
+    'frame-ancestors': [...getFrameAncestors()],
   }
 
   return buildCSPString(runtimeDirectives)
 }
 
-/**
- * Extra `frame-ancestors` origins from `DEV_FRAME_ANCESTORS`, only in
- * development. Always includes `'self'`. Each entry must be a valid origin.
- */
-export function getDevFrameAncestors(): string[] {
-  const base = ["'self'"]
-  if (!isDev) return base
-  const raw = getEnv('DEV_FRAME_ANCESTORS')
-  if (!raw) return base
-  const extra = raw
+function parseOrigins(raw: string | undefined): string[] {
+  if (!raw) return []
+  return raw
     .split(',')
     .map((s) => s.trim())
     .filter((s) => {
@@ -305,7 +295,27 @@ export function getDevFrameAncestors(): string[] {
         return false
       }
     })
-  return [...base, ...extra]
+}
+
+/**
+ * The origins allowed to iframe the app pages: always `'self'`, plus the
+ * embedding apps in `EMBED_FRAME_ANCESTORS` (e.g. the ITSM front end that hosts
+ * the workflow editor), plus `DEV_FRAME_ANCESTORS` in development only.
+ */
+export function getFrameAncestors(): string[] {
+  return [
+    "'self'",
+    ...parseOrigins(getEnv('EMBED_FRAME_ANCESTORS')),
+    ...(isDev ? parseOrigins(getEnv('DEV_FRAME_ANCESTORS')) : []),
+  ]
+}
+
+/**
+ * Whether another origin may iframe the app pages. `X-Frame-Options` cannot
+ * name an origin, so it is sent only when framing is limited to `'self'`.
+ */
+export function allowsCrossOriginFraming(): boolean {
+  return getFrameAncestors().length > 1
 }
 
 /**
