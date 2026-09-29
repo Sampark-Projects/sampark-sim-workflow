@@ -19,21 +19,23 @@ const REQUEST_TIMEOUT_MS = 10_000
  * redeploy.
  */
 const CACHE_TTL_MS = 10 * 60_000
+/**
+ * An empty list is usually a real "no data" answer (a category without
+ * subcategories), but it is also what ITSM answers for a moment while a
+ * backend deploy rolls out. It is kept only briefly, so a transient empty
+ * answer cannot blank the dropdowns for the full cache lifetime.
+ */
+const EMPTY_LIST_TTL_MS = 30_000
 const CACHE_MAX_ENTRIES = 500
 
-/** Customer-scoped dropdown API: one endpoint, the list chosen by `type`. */
-const CUSTOMER_DROPDOWN_PATH = '/secure/ticket-management/api/ext/fetch/dropdown'
-const APP_CONSTANT_PATH = '/secure/ticket-management/api/v1/fetch/app/constant'
+/**
+ * Customer-scoped dropdown API: one public endpoint (no authorization or
+ * device id), the list chosen by `type`.
+ */
+const CUSTOMER_DROPDOWN_PATH = '/ticket-management/api/ext/fetch/dropdown'
 
 /** The gateway's "no rows" answer: HTTP 200 carrying `statusCode: 202`. */
 const NO_DATA_STATUS_CODE = 202
-
-export class ItsmGatewayNotConfiguredError extends Error {
-  constructor() {
-    super('ITSM gateway is not configured')
-    this.name = 'ItsmGatewayNotConfiguredError'
-  }
-}
 
 export class ItsmGatewayRequestError extends Error {
   constructor(message: string) {
@@ -54,34 +56,25 @@ const dropdownItemSchema = z.object({
   value: z.string().nullish(),
 })
 
-const appConstantSchema = z.object({
-  keyCode: z.string(),
-  codeValue: z.string().nullish(),
-})
-
-interface GatewayConfig {
-  baseUrl: string
-  headers: Record<string, string>
+/**
+ * The ITSM gateway each Sim deployment talks to, keyed by Sim's own domain
+ * (`NEXT_PUBLIC_APP_URL`). Only the production Sim domain has a production
+ * ITSM gateway; every other Sim deployment (QA, local) uses the QA gateway.
+ */
+const ITSM_GATEWAY_URL_BY_SIM_HOST: Record<string, string> = {
+  'sim.samparkme.com': 'https://itsm.samparkme.com/gateway',
 }
+const DEFAULT_ITSM_GATEWAY_URL = 'https://itsmqa.samparkme.com/gateway'
 
-function getGatewayConfig(): GatewayConfig {
-  const baseUrl = env.ITSM_GATEWAY_URL
-  const token = env.ITSM_GATEWAY_TOKEN
-  const deviceId = env.ITSM_GATEWAY_DEVICE_ID
-  if (!baseUrl || !token || !deviceId) throw new ItsmGatewayNotConfiguredError()
-  return {
-    baseUrl: baseUrl.replace(/\/+$/, ''),
-    headers: {
-      authorization: token,
-      deviceId,
-      'Content-Type': 'application/json',
-    },
-  }
-}
-
-/** Whether the ITSM master-data gateway credentials are present. */
-export function isItsmGatewayConfigured(): boolean {
-  return Boolean(env.ITSM_GATEWAY_URL && env.ITSM_GATEWAY_TOKEN && env.ITSM_GATEWAY_DEVICE_ID)
+/**
+ * Resolves the ITSM gateway base URL from the domain Sim itself is deployed
+ * on. `ITSM_GATEWAY_URL` remains a manual override for local testing against
+ * a non-standard gateway; leave it unset to use the domain-based default.
+ */
+function resolveItsmGatewayUrl(): string {
+  if (env.ITSM_GATEWAY_URL) return env.ITSM_GATEWAY_URL
+  const simHost = new URL(env.NEXT_PUBLIC_APP_URL).hostname
+  return ITSM_GATEWAY_URL_BY_SIM_HOST[simHost] ?? DEFAULT_ITSM_GATEWAY_URL
 }
 
 /**
@@ -92,12 +85,13 @@ async function callGateway(
   path: string,
   body: Record<string, unknown>
 ): Promise<Record<string, unknown> | null> {
-  const config = getGatewayConfig()
+  const baseUrl = resolveItsmGatewayUrl().replace(/\/+$/, '')
+  const headers = { 'Content-Type': 'application/json' }
   let response: Response
   try {
-    response = await fetch(`${config.baseUrl}${path}`, {
+    response = await fetch(`${baseUrl}${path}`, {
       method: 'POST',
-      headers: config.headers,
+      headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       redirect: 'error',
@@ -167,28 +161,20 @@ async function fetchCustomerDropdown(
   })
 }
 
-async function fetchAppConstants(codeId: string): Promise<ItsmMasterDataOption[]> {
-  const responseObject = await callGateway(APP_CONSTANT_PATH, { codeId })
-  return parseList(responseObject, 'appConstants', appConstantSchema).map((item) => ({
-    id: item.keyCode,
-    name: cleanName(item.codeValue, item.keyCode),
-  }))
-}
-
 interface CacheLoadContext {
   load: () => Promise<ItsmMasterDataOption[]>
 }
 
-/**
- * Keyed by list and parent id, and by customer for customer-scoped lists. The
- * lists not yet on the customer API (levels, rule types) follow the
- * deployment-wide gateway token and share one entry.
- */
+/** Keyed by customer, list, and parent id. */
 const masterDataCache = new LRUCache<string, ItsmMasterDataOption[], CacheLoadContext>({
   max: CACHE_MAX_ENTRIES,
   ttl: CACHE_TTL_MS,
   ignoreFetchAbort: true,
-  fetchMethod: async (_key, _staleValue, { context }) => context.load(),
+  fetchMethod: async (_key, _staleValue, { context, options }) => {
+    const value = await context.load()
+    if (value.length === 0) options.ttl = EMPTY_LIST_TTL_MS
+    return value
+  },
 })
 
 /**
@@ -239,6 +225,8 @@ const INDEPENDENT_LISTS: readonly (readonly [string, string | undefined])[] = [
   ['USER', undefined],
   ['CREATOR', undefined],
   ['RESOLVER', undefined],
+  ['ASSIGNMENT_RULE', undefined],
+  ['LABEL', undefined],
 ]
 
 /**
@@ -250,16 +238,9 @@ const INDEPENDENT_LISTS: readonly (readonly [string, string | undefined])[] = [
  * once per parent.
  */
 function warmIndependentLists(customerId: string): void {
-  const loads = [
-    ...INDEPENDENT_LISTS.map(
-      ([type, requestType]) =>
-        () =>
-          customerList(customerId, type, '', requestType)
-    ),
-    listItsmLevels,
-    listItsmAssignmentRules,
-  ]
-  for (const load of loads) load().catch(() => {})
+  for (const [type, requestType] of INDEPENDENT_LISTS) {
+    customerList(customerId, type, '', requestType).catch(() => {})
+  }
 }
 
 /** A list with no parent id; asking for one starts all of them. */
@@ -369,12 +350,27 @@ export async function listItsmUsers(customerId: string): Promise<ItsmUserOption[
   })
 }
 
-export function listItsmLevels(): Promise<ItsmMasterDataOption[]> {
-  return cached('level', () => fetchAppConstants('ESCLATION_LEVEL'))
+/**
+ * The approval levels (L1, L2, ...). ITSM gives every level the same id, so a
+ * level is identified by its name, as the rule JSON has always carried it.
+ */
+export async function listItsmLevels(customerId: string): Promise<ItsmMasterDataOption[]> {
+  return (await independentList(customerId, 'LABEL')).map((level) => ({
+    id: level.name,
+    name: level.name,
+  }))
 }
 
-export function listItsmAssignmentRules(): Promise<ItsmMasterDataOption[]> {
-  return cached('assignmentRule', () => fetchAppConstants('TICKET_ASSIGNMENT_RULE'))
+/**
+ * The bin assignment rules (Bin Owner, Round Robin, Roster). ITSM gives every
+ * rule the same id, so the rule is identified by its name, as the rule JSON
+ * has always carried it.
+ */
+export async function listItsmAssignmentRules(customerId: string): Promise<ItsmMasterDataOption[]> {
+  return (await independentList(customerId, 'ASSIGNMENT_RULE')).map((rule) => ({
+    id: rule.name,
+    name: rule.name,
+  }))
 }
 
 export function clearItsmMasterDataCacheForTests(): void {

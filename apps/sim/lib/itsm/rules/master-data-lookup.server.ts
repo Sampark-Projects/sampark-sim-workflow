@@ -61,8 +61,8 @@ export async function loadItsmMasterDataLookup(
     ifNeeded('users', () => listItsmUsers(customerId)),
     ifNeeded('statuses', () => listItsmStatuses(customerId)),
     ifNeeded('severities', () => listItsmSeverities(customerId)),
-    ifNeeded('levels', listItsmLevels),
-    ifNeeded('assignmentRules', listItsmAssignmentRules),
+    ifNeeded('levels', () => listItsmLevels(customerId)),
+    ifNeeded('assignmentRules', () => listItsmAssignmentRules(customerId)),
     listItsmBinsOfDepartments(customerId, assignDepartmentIds),
   ])
   const categorySubcategories = new Map(

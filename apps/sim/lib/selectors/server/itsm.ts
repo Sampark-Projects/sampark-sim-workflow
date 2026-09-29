@@ -1,6 +1,5 @@
 import { createLogger } from '@sim/logger'
 import {
-  ItsmGatewayNotConfiguredError,
   listItsmAllBins,
   listItsmAssignmentRules,
   listItsmBinsOfDepartments,
@@ -27,7 +26,6 @@ import {
   SelectorOptionsUnavailableError,
 } from '@/lib/selectors/server/errors'
 import {
-  detailSelectorResult,
   type ExecuteServerSelectorArgs,
   listSelectorResult,
   type ServerSelectorAttachment,
@@ -83,8 +81,8 @@ function parseParentIds(raw: string | undefined): string[] {
 
 /**
  * Builds an attachment over a flat, fully-loaded list of the workspace's ITSM
- * customer. Detail reads resolve against the same cached list, so hydrating a
- * saved id costs no extra call.
+ * customer. The list is complete, so a saved id is shown from it and needs no
+ * detail request of its own.
  */
 function flatItsmSelector(
   load: (args: ExecuteServerSelectorArgs, customerId: string) => Promise<SafeSelectorOption[]>
@@ -106,18 +104,8 @@ function flatItsmSelector(
         options = await load(args, customerId)
       } catch (error) {
         if (error instanceof SelectorContextUnavailableError) throw error
-        if (error instanceof ItsmGatewayNotConfiguredError) {
-          logger.warn('ITSM selector requested but the gateway is not configured', {
-            selectorKey: args.selectorKey,
-          })
-          throw new SelectorConnectionUnavailableError()
-        }
         logger.error('ITSM selector failed', { selectorKey: args.selectorKey, error })
         throw new SelectorOptionsUnavailableError()
-      }
-      if (args.request.kind === 'detail') {
-        const detailId = args.request.id
-        return detailSelectorResult(options.find((option) => option.id === detailId) ?? null)
       }
       return listSelectorResult(options)
     },
@@ -169,8 +157,10 @@ export const itsmSelectorAttachments = {
   'itsm.severities': flatItsmSelector(async (_args, customerId) =>
     toSelectorOptions(await listItsmSeverities(customerId))
   ),
-  'itsm.levels': flatItsmSelector(async () => toSelectorOptions(await listItsmLevels())),
-  'itsm.assignmentRules': flatItsmSelector(async () =>
-    toSelectorOptions(await listItsmAssignmentRules())
+  'itsm.levels': flatItsmSelector(async (_args, customerId) =>
+    toSelectorOptions(await listItsmLevels(customerId))
+  ),
+  'itsm.assignmentRules': flatItsmSelector(async (_args, customerId) =>
+    toSelectorOptions(await listItsmAssignmentRules(customerId))
   ),
 } satisfies ServerSelectorAttachmentMap<ItsmSelectorKey>
