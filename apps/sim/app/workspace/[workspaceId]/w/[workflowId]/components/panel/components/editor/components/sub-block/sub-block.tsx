@@ -25,6 +25,7 @@ import {
   GroupedCheckboxList,
   InputFormat,
   InputMapping,
+  ItsmConditionInput,
   KnowledgeBaseSelector,
   KnowledgeTagFilters,
   LongInput,
@@ -689,6 +690,7 @@ function SubBlockComponent({
               dependsOn={config.dependsOn}
               searchable={config.searchable}
               preserveLabelCase={config.preserveLabelCase}
+              clearable={config.clearable}
             />
           </div>
         )
@@ -862,6 +864,17 @@ function SubBlockComponent({
             subBlockId={config.id}
             isPreview={isPreview}
             previewValue={previewValue as any}
+            disabled={isDisabled}
+          />
+        )
+
+      case 'itsm-condition-input':
+        return (
+          <ItsmConditionInput
+            blockId={blockId}
+            subBlockId={config.id}
+            isPreview={isPreview}
+            previewValue={previewValue}
             disabled={isDisabled}
           />
         )

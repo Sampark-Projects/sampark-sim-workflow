@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, DashedDividerLine, FieldDivider, Loader, Tooltip } from '@sim/emcn'
 import {
-  BookOpen,
   Check,
   ChevronDown,
   ChevronUp,
@@ -15,12 +14,10 @@ import {
 import type { BlockRetryConfig } from '@sim/workflow-types/workflow'
 import { isEqual } from 'es-toolkit'
 import { useParams } from 'next/navigation'
-import { usePostHog } from 'posthog-js/react'
 import { useShallow } from 'zustand/react/shallow'
 import { useStoreWithEqualityFn } from 'zustand/traditional'
 import { isMcpRuntimeReference } from '@/lib/mcp/operation-policy'
 import { resolveMcpBlockConfig } from '@/lib/mcp/workflow-config'
-import { captureEvent } from '@/lib/posthog/client'
 import { isRetryEligibleBlock } from '@/lib/workflows/blocks/retry-eligibility'
 import {
   buildCanonicalIndex,
@@ -46,8 +43,6 @@ import {
   useEditorSubblockLayout,
 } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/hooks'
 import { ActiveSearchTargetProvider } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/providers/active-search-target-provider'
-import { LoopTool } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/loop/loop-config'
-import { ParallelTool } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/parallel/parallel-config'
 import { getSubBlockStableKey } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/workflow-block/utils'
 import { useCurrentWorkflow } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks'
 import {
@@ -111,8 +106,6 @@ export function Editor() {
   const isSubflow =
     currentBlock && (currentBlock.type === 'loop' || currentBlock.type === 'parallel')
 
-  const subflowConfig = isSubflow ? (currentBlock.type === 'loop' ? LoopTool : ParallelTool) : null
-
   const isWorkflowBlock =
     currentBlock && (currentBlock.type === 'workflow' || currentBlock.type === 'workflow_input')
   const isNoteBlock = currentBlock?.type === 'note'
@@ -123,7 +116,6 @@ export function Editor() {
 
   const params = useParams()
   const workspaceId = params.workspaceId as string
-  const posthog = usePostHog()
 
   const subBlocksRef = useRef<HTMLDivElement>(null)
 
@@ -271,11 +263,13 @@ export function Editor() {
     setAdditionalFieldsExpanded((expanded) => !expanded)
   }, [canEditBlock])
 
-  const supportsRetry = isRetryEligibleBlock({
-    blockType: currentBlock?.type,
-    category: blockConfig?.category,
-    triggerMode,
-  })
+  const supportsRetry =
+    blockConfig?.errorOutput !== false &&
+    isRetryEligibleBlock({
+      blockType: currentBlock?.type,
+      category: blockConfig?.category,
+      triggerMode,
+    })
   const showRetrySettings = supportsRetry && displayAdvancedOptions
 
   /** Retry lives in the additional-fields disclosure, which a block may otherwise have no reason to show. */
@@ -389,18 +383,6 @@ export function Editor() {
     setIsRenaming(false)
     setEditedName('')
   }, [currentBlockId])
-
-  /**
-   * Handles opening documentation link in a new secure tab.
-   */
-  const handleOpenDocs = useCallback(() => {
-    const docsLink = isSubflow ? subflowConfig?.docsLink : blockConfig?.docsLink
-    window.open(docsLink || 'https://docs.sim.ai/quick-reference', '_blank', 'noopener,noreferrer')
-    captureEvent(posthog, 'docs_opened', {
-      source: 'editor_button',
-      block_type: currentBlock?.type,
-    })
-  }, [isSubflow, subflowConfig?.docsLink, blockConfig?.docsLink, posthog, currentBlock?.type])
 
   const childWorkflowId = isWorkflowBlock ? blockSubBlockValues?.workflowId : null
 
@@ -534,21 +516,6 @@ export function Editor() {
               </Tooltip.Content>
             </Tooltip.Root>
           )} */}
-            <Tooltip.Root>
-              <Tooltip.Trigger asChild>
-                <Button
-                  variant='ghost'
-                  className='p-0'
-                  onClick={handleOpenDocs}
-                  aria-label='Open documentation'
-                >
-                  <BookOpen className='size-[14px]' />
-                </Button>
-              </Tooltip.Trigger>
-              <Tooltip.Content side='top'>
-                <p>Open docs</p>
-              </Tooltip.Content>
-            </Tooltip.Root>
           </div>
         </div>
 

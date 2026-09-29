@@ -41,9 +41,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { usePostHog } from 'posthog-js/react'
 import { createPortal } from 'react-dom'
 import { supportsAtomicBrowserPanelOcclusion } from '@/lib/browser-agent/transport'
-import { useDeploymentShape } from '@/lib/core/config/deployment-shape'
 import { MothershipHandoffStorage } from '@/lib/core/utils/browser-storage'
 import { getFolderPathNames } from '@/lib/folders/tree'
+import { ITSM_STEP_BLOCK_TYPES } from '@/lib/itsm/rules/block-types'
 import { sendMothershipMessage } from '@/lib/mothership/events'
 import { captureEvent } from '@/lib/posthog/client'
 import { toSearchToken } from '@/lib/search/tokens'
@@ -122,6 +122,19 @@ const MAX_SEARCH_RESULTS = 50
 /** Stable empty default so a pending folder map does not remount the memos below. */
 const EMPTY_FOLDER_MAP: Record<string, WorkflowFolder> = {}
 
+/**
+ * The ITSM rule builder offers only its own blocks: no tools, triggers, tool
+ * operations, pages, workspaces, or Sim chat in the palette, and of the page
+ * actions only copying the workflow link.
+ */
+const ITSM_PALETTE_CHAT_ENABLED = false
+const ITSM_PALETTE_ACTION_IDS: ReadonlySet<string> = new Set(['copy-workflow-url'])
+const EMPTY_TOOLS: SearchBlockItem[] = []
+const EMPTY_TRIGGERS: (SearchBlockItem & { baseName: string })[] = []
+const EMPTY_TOOL_OPERATIONS: SearchToolOperationItem[] = []
+const EMPTY_PAGES: PageItem[] = []
+const EMPTY_WORKSPACES: WorkspaceItem[] = []
+
 export type { SearchModalProps } from '@/app/workspace/[workspaceId]/w/components/sidebar/components/search-modal/utils'
 
 type SearchModalContentProps = Omit<SearchModalProps, 'open'>
@@ -154,9 +167,8 @@ function SearchModalContent({
 }: SearchModalContentProps) {
   const params = useParams()
   const router = useRouter()
-  const { chatEnabled } = useDeploymentShape()
+  const chatEnabled = ITSM_PALETTE_CHAT_ENABLED
   const workspaceId = params.workspaceId as string
-  const currentWorkflowId = params.workflowId as string | undefined
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const atomicBrowserOcclusion = supportsAtomicBrowserPanelOcclusion()
@@ -1018,41 +1030,29 @@ function SearchModalContent({
     )
     return {
       page: pageContext
-        ? available.filter((action) => getActionGroupLabel(action) === 'Actions')
+        ? available.filter(
+            (action) =>
+              getActionGroupLabel(action) === 'Actions' && ITSM_PALETTE_ACTION_IDS.has(action.id)
+          )
         : [],
-      sim: available.filter((action) => getActionGroupLabel(action) === 'Sim'),
+      sim: [],
     }
   }, [actions, pageContext])
+  /** The ITSM rule blocks, in toolbar order; the Start block is placed once per rule. */
   const availableBlocks = useMemo(
     () =>
       onCanvas
-        ? blocks.filter(
-            (block) => !block.sourceWorkflowId || block.sourceWorkflowId !== currentWorkflowId
-          )
+        ? blocks
+            .filter((block) => ITSM_STEP_BLOCK_TYPES.includes(block.type))
+            .sort(
+              (a, b) =>
+                ITSM_STEP_BLOCK_TYPES.indexOf(a.type) - ITSM_STEP_BLOCK_TYPES.indexOf(b.type)
+            )
         : [],
-    [onCanvas, blocks, currentWorkflowId]
+    [onCanvas, blocks]
   )
-  const availableTools = useMemo(
-    () =>
-      onCanvas
-        ? tools.filter(
-            (tool) => !tool.sourceWorkflowId || tool.sourceWorkflowId !== currentWorkflowId
-          )
-        : [],
-    [onCanvas, tools, currentWorkflowId]
-  )
-  /** Palette triggers carry a display suffix; `baseName` keeps the true name rankable. */
-  const displayTriggers = useMemo(
-    () =>
-      onCanvas
-        ? triggers.map((trigger) => ({
-            ...trigger,
-            baseName: trigger.name,
-            name: trigger.name.endsWith('Trigger') ? trigger.name : `${trigger.name} Trigger`,
-          }))
-        : [],
-    [onCanvas, triggers]
-  )
+  const availableTools = EMPTY_TOOLS
+  const displayTriggers = EMPTY_TRIGGERS
 
   const entriesBySection = useMemo((): Record<SearchSection, SearchEntry[]> => {
     const query = deferredSearch.trim()
@@ -1117,11 +1117,11 @@ function SearchModalContent({
          uncapped makes modal open/close laggy, so they are search-only. */
       toolOperations: rank(
         'toolOperations',
-        onCanvas && query ? toolOperations : [],
+        EMPTY_TOOL_OPERATIONS,
         (item) => item.name,
         (item) => item.searchValue
       ).map(({ item, score }) => ({ section: 'toolOperations', item, score })),
-      pages: rank('pages', pages, (item) => item.name).map(({ item, score }) => ({
+      pages: rank('pages', EMPTY_PAGES, (item) => item.name).map(({ item, score }) => ({
         section: 'pages',
         item,
         score: item.name.toLowerCase() === query.toLowerCase() ? PAGE_MATCH_TIER : score,
@@ -1132,11 +1132,13 @@ function SearchModalContent({
         (item) => item.name,
         (item) => item.folderPath?.map(toSearchToken).join(' ')
       ).map(({ item, score }) => ({ section: 'workflows', item, score })),
-      workspaces: rank('workspaces', workspaces, (item) => item.name).map(({ item, score }) => ({
-        section: 'workspaces',
-        item,
-        score,
-      })),
+      workspaces: rank('workspaces', EMPTY_WORKSPACES, (item) => item.name).map(
+        ({ item, score }) => ({
+          section: 'workspaces',
+          item,
+          score,
+        })
+      ),
       files: rank(
         'files',
         files,

@@ -25,7 +25,11 @@ import {
 } from '@/lib/workflows/blocks/canvas-sentence'
 import { resolveSelectedTriggerId } from '@/lib/workflows/blocks/canvas-trigger-sentence'
 import { calculateWorkflowBlockDimensions } from '@/lib/workflows/blocks/deterministic-dimensions'
-import { getConditionRows, getRouterRows } from '@/lib/workflows/dynamic-handle-topology'
+import {
+  getBranchConditionRows,
+  getRouterRows,
+  isConditionBranchBlockType,
+} from '@/lib/workflows/dynamic-handle-topology'
 import { getDisplayValue, hasDisplayableRowValue } from '@/lib/workflows/subblocks/display'
 import {
   buildCanonicalIndexForSurface,
@@ -348,10 +352,9 @@ function estimateWorkflowBlockDimensions(block: BlockState): { width: number; he
        carries the row permanently, so omitting it under-counted 32px on
        almost every card — the one direction that causes overlaps. */
     hasErrorRow: showsCanvasErrorRow(blockConfig, block.type, Boolean(block.triggerMode)),
-    conditionRowCount:
-      block.type === 'condition'
-        ? getConditionRows(block.id, block.subBlocks?.conditions?.value).length
-        : 0,
+    conditionRowCount: isConditionBranchBlockType(block.type)
+      ? getBranchConditionRows(block.type, block.id, block.subBlocks).length
+      : 0,
     routerRowCount:
       block.type === 'router_v2'
         ? getRouterRows(block.id, block.subBlocks?.routes?.value).length

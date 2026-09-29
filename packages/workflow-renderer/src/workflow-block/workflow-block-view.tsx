@@ -512,6 +512,14 @@ export interface WorkflowBlockViewProps {
   hasContentBelowHeader: boolean
   conditionRows: { id: string; title: string; value: string }[]
   routerRows: { id: string; value: string }[]
+  /**
+   * Which per-row branch layout the card renders. Defaults from `type`
+   * (`condition` renders condition rows, `router_v2` router rows); a block that
+   * reuses a branch layout under its own type passes it explicitly.
+   */
+  branchLayout?: 'condition' | 'router' | null
+  /** Whether the block offers an "On error" branch at all. Defaults to true. */
+  errorRowAvailable?: boolean
   /** Router 'Context' summary-row value (router_v2 only). */
   routerContextValue?: string
   /** Connection-cycle guard; reads fresh edge state on every call. */
@@ -624,6 +632,8 @@ export function WorkflowBlockView({
   hasContentBelowHeader,
   conditionRows,
   routerRows,
+  branchLayout: branchLayoutProp,
+  errorRowAvailable = true,
   routerContextValue,
   wouldCreateConnectionCycle,
   cursorConnectionsEnabled = true,
@@ -661,6 +671,14 @@ export function WorkflowBlockView({
   onToggleErrorOutput,
   highlightedHandles,
 }: WorkflowBlockViewProps) {
+  const branchLayout =
+    branchLayoutProp !== undefined
+      ? branchLayoutProp
+      : type === 'condition'
+        ? 'condition'
+        : type === 'router_v2'
+          ? 'router'
+          : null
   const updateNodeInternals = useUpdateNodeInternals()
   const reactFlowStore = useReactFlowStoreApi()
   const getConnectionNodeId = useCallback(
@@ -685,14 +703,14 @@ export function WorkflowBlockView({
       }
 
       const handleId =
-        type === 'condition'
+        branchLayout === 'condition'
           ? getNearestBranchCursorHandleId(
               conditionRows,
               nextHandle.y,
               HANDLE_POSITIONS.CONDITION_START_Y,
               'condition'
             )
-          : type === 'router_v2'
+          : branchLayout === 'router'
             ? getNearestBranchCursorHandleId(
                 routerRows,
                 nextHandle.y,
@@ -713,7 +731,7 @@ export function WorkflowBlockView({
         setCursorSourceHandle({ ...nextHandle, handleId })
       }
     },
-    [conditionRows, routerRows, supportsCursorHandle, type]
+    [branchLayout, conditionRows, routerRows, supportsCursorHandle]
   )
   /**
    * Keeps React Flow's cached origin aligned with the transient DOM handle
@@ -788,7 +806,7 @@ export function WorkflowBlockView({
   })
   /* Blocks that can emit an error always carry the row; `response` terminates
      the flow and has no error branch. */
-  const showErrorRow = shouldShowDefaultHandles && type !== 'response'
+  const showErrorRow = errorRowAvailable && shouldShowDefaultHandles && type !== 'response'
   /*
    * The error output is a real, draggable source whenever the toggle is on (a
    * connection forces the toggle on, so connected cards always have it). It
@@ -838,7 +856,7 @@ export function WorkflowBlockView({
   /* Per-row branch ports shrink as rows multiply (24px for two rows, -2px per
      extra row, floored at 16px) so a long stack keeps air between the bumps
      within the fixed 29px row pitch. */
-  const branchRowCount = type === 'condition' ? conditionRows.length : routerRows.length
+  const branchRowCount = branchLayout === 'condition' ? conditionRows.length : routerRows.length
   const rowTabLength = clampTabLength(
     branchRowCount <= 2 ? TAB_LENGTH_SMALL_PX : TAB_LENGTH_SMALL_PX - (branchRowCount - 2) * 2
   )
@@ -853,7 +871,7 @@ export function WorkflowBlockView({
         color: tabFill(WORKFLOW_TARGET_HANDLE_ID),
       })
     }
-    if (type === 'condition') {
+    if (branchLayout === 'condition') {
       conditionRows.forEach((condition, index) => {
         ports.push({
           id: `condition-${condition.id}`,
@@ -864,7 +882,7 @@ export function WorkflowBlockView({
           color: tabFill(`condition-${condition.id}`),
         })
       })
-    } else if (type === 'router_v2') {
+    } else if (branchLayout === 'router') {
       routerRows.forEach((route, index) => {
         ports.push({
           id: `router-${route.id}`,
@@ -901,6 +919,7 @@ export function WorkflowBlockView({
     }
     return ports
   }, [
+    branchLayout,
     conditionRows,
     actionMenuSwellOpen,
     actionMenuWidth,
@@ -1208,11 +1227,11 @@ export function WorkflowBlockView({
               !isEnabled && 'opacity-50'
             )}
           >
-            {type === 'condition' ? (
+            {branchLayout === 'condition' ? (
               conditionRows.map((cond) => (
                 <SubBlockRowView key={cond.id} title={cond.title} displayValue={cond.value} />
               ))
-            ) : type === 'router_v2' ? (
+            ) : branchLayout === 'router' ? (
               <>
                 <SubBlockRowView key='context' title='Context' displayValue={routerContextValue} />
                 {routerRows.map((route, index) => (
@@ -1254,7 +1273,7 @@ export function WorkflowBlockView({
           </div>
         )}
 
-        {type === 'condition' && (
+        {branchLayout === 'condition' && (
           <>
             {conditionRows.map((cond, condIndex) => {
               const topOffset =
@@ -1290,7 +1309,7 @@ export function WorkflowBlockView({
           </>
         )}
 
-        {type === 'router_v2' && (
+        {branchLayout === 'router' && (
           <>
             {routerRows.map((route, routeIndex) => {
               // +1 row offset for context row at the top
@@ -1327,7 +1346,7 @@ export function WorkflowBlockView({
           </>
         )}
 
-        {type !== 'condition' && type !== 'router_v2' && type !== 'response' && (
+        {branchLayout === null && type !== 'response' && (
           <Handle
             type='source'
             position={Position.Right}

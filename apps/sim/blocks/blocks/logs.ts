@@ -324,6 +324,7 @@ const TRIGGER_FIELD = ['triggerSelector', 'manualTriggers'] as const
 export const LogsV2Block: BlockConfig = {
   type: 'logs_v2',
   name: 'Logs',
+  hideFromToolbar: true,
   description: 'Query workflow runs and fetch run details',
   longDescription:
     'Query workflow run logs in the current workspace with the same filters as the Logs page, returning matching run IDs. Fetch full details for a single run, including its trace spans.',

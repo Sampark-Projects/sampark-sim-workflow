@@ -87,7 +87,9 @@ function project(error: unknown) {
 
 describe('POST /api/selectors/execute', () => {
   it('uses authenticated per-user admission control', () => {
-    expect(mocks.userRateLimit).toHaveBeenCalledWith({ bucketName: 'selectors.execute' })
+    expect(mocks.userRateLimit).toHaveBeenCalledWith(
+      expect.objectContaining({ bucketName: 'selectors.execute' })
+    )
   })
 
   it('marks success, authentication, parse, and unhandled responses private and non-cacheable', async () => {

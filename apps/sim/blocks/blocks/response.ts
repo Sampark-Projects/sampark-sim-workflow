@@ -5,6 +5,7 @@ import type { ResponseBlockOutput } from '@/tools/response/types'
 export const ResponseBlock: BlockConfig<ResponseBlockOutput> = {
   type: 'response',
   name: 'Response',
+  hideFromToolbar: true,
   description: 'Send structured API response',
   longDescription:
     'Integrate Response into the workflow. Can send build or edit structured responses into a final workflow response.',

@@ -6,6 +6,7 @@ import type { RequestResponse } from '@/tools/http/types'
 export const ApiBlock: BlockConfig<RequestResponse> = {
   type: 'api',
   name: 'API',
+  hideFromToolbar: true,
   description: 'Use any API',
   longDescription:
     'This is a core workflow block. Connect to any external API with support for all standard HTTP methods and customizable request parameters. Configure headers, query parameters, and request bodies. Standard headers (User-Agent, Accept, Cache-Control, etc.) are automatically included.',

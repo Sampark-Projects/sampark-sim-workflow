@@ -322,6 +322,9 @@ export const env = createEnv({
 
     // ITSM Integration
     ITSM_API_KEY:                          z.string().min(32).optional(),          // Shared secret for the ITSM provisioning/token-exchange API (generate with: openssl rand -hex 32)
+    ITSM_GATEWAY_URL:                      z.string().url().optional(),            // ITSM gateway base URL used to read master data (e.g., https://itsmqa.samparkme.com/gateway)
+    ITSM_GATEWAY_TOKEN:                    z.string().min(1).optional(),           // ITSM gateway `authorization` header value (temporary shared token until per-org tokens land)
+    ITSM_GATEWAY_DEVICE_ID:                z.string().min(1).optional(),           // ITSM gateway `deviceId` header value
 
     // Mothership Admin
     MOTHERSHIP_API_ADMIN_KEY:              z.string().min(1).optional(),           // Admin API key for mothership/copilot admin endpoints

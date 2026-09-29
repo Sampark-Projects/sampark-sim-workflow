@@ -207,6 +207,6 @@ export const HumanInTheLoopBlock: BlockConfig<ResponseBlockOutput> = {
 export const HumanInTheLoopV2Block: BlockConfig<ResponseBlockOutput> = {
   ...HumanInTheLoopBlock,
   type: 'human_in_the_loop_v2',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   sunset: undefined,
 }

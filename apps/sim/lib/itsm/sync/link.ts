@@ -1,5 +1,5 @@
 import { db } from '@sim/db'
-import { itsmOrganizationLink } from '@sim/db/schema'
+import { itsmOrganizationLink, workspace } from '@sim/db/schema'
 import { eq } from 'drizzle-orm'
 import { LRUCache } from 'lru-cache'
 import { decryptItsmWebhookSecret } from '@/lib/itsm/encryption'
@@ -50,6 +50,49 @@ async function fetchSyncLink(where: ReturnType<typeof eq>): Promise<ItsmSyncLink
     webhookUrl: row.webhookUrl,
     webhookSigningSecret: await decryptItsmWebhookSecret(row.webhookSigningSecretEncrypted),
   }
+}
+
+/**
+ * The ITSM customer id an organization is actively linked to, whether or not a
+ * sync webhook is configured. Null for unlinked or disabled organizations.
+ */
+export async function findItsmCustomerIdByOrganizationId(
+  organizationId: string
+): Promise<string | null> {
+  const [row] = await db
+    .select({ customerId: itsmOrganizationLink.customerId, status: itsmOrganizationLink.status })
+    .from(itsmOrganizationLink)
+    .where(eq(itsmOrganizationLink.organizationId, organizationId))
+    .limit(1)
+  return row?.status === 'active' ? row.customerId : null
+}
+
+/**
+ * A workspace's ITSM customer rarely changes, and every master-data dropdown
+ * asks for it, so a minute of staleness is traded for one query per minute.
+ */
+const customerIdByWorkspaceCache = new LRUCache<string, { customerId: string | null }>({
+  max: 5000,
+  ttl: 60_000,
+})
+
+/** The ITSM customer id of the organization that owns a workspace, or null if unlinked. */
+export async function findItsmCustomerIdByWorkspaceId(workspaceId: string): Promise<string | null> {
+  const cached = customerIdByWorkspaceCache.get(workspaceId)
+  if (cached !== undefined) return cached.customerId
+
+  const [row] = await db
+    .select({ customerId: itsmOrganizationLink.customerId, status: itsmOrganizationLink.status })
+    .from(workspace)
+    .innerJoin(
+      itsmOrganizationLink,
+      eq(itsmOrganizationLink.organizationId, workspace.organizationId)
+    )
+    .where(eq(workspace.id, workspaceId))
+    .limit(1)
+  const customerId = row?.status === 'active' ? row.customerId : null
+  customerIdByWorkspaceCache.set(workspaceId, { customerId })
+  return customerId
 }
 
 /** The active, webhook-configured ITSM link for an organization, or null if none/disabled. */

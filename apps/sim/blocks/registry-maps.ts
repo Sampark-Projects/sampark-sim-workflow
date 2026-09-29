@@ -166,6 +166,11 @@ import {
   IntercomV2Block,
   IntercomV2BlockMeta,
 } from '@/blocks/blocks/intercom'
+import { ItsmApprovalBlock } from '@/blocks/blocks/itsm_approval'
+import { ItsmAssignBlock } from '@/blocks/blocks/itsm_assign'
+import { ItsmConditionBlock } from '@/blocks/blocks/itsm_condition'
+import { ItsmEscalationBlock } from '@/blocks/blocks/itsm_escalation'
+import { ItsmStartBlock } from '@/blocks/blocks/itsm_start'
 import { JinaBlock, JinaBlockMeta } from '@/blocks/blocks/jina'
 import { JiraBlock, JiraBlockMeta } from '@/blocks/blocks/jira'
 import {
@@ -540,6 +545,11 @@ export const BLOCK_REGISTRY: Record<string, BlockConfig> = {
   instantly: InstantlyBlock,
   intercom: IntercomBlock,
   intercom_v2: IntercomV2Block,
+  itsm_approval: ItsmApprovalBlock,
+  itsm_assign: ItsmAssignBlock,
+  itsm_condition: ItsmConditionBlock,
+  itsm_escalation: ItsmEscalationBlock,
+  itsm_start: ItsmStartBlock,
   jina: JinaBlock,
   jira: JiraBlock,
   jira_service_management: JiraServiceManagementBlock,

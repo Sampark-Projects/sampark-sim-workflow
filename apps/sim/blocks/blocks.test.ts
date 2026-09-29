@@ -574,6 +574,7 @@ describe.concurrent('Blocks Module', () => {
         'checkbox-list',
         'grouped-checkbox-list',
         'condition-input',
+        'itsm-condition-input',
         'eval-input',
         'time-input',
         'oauth-input',

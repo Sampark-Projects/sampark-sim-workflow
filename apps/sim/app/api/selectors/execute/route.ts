@@ -22,6 +22,16 @@ import { IntegrationNotAllowedError } from '@/ee/access-control/utils/permission
 const PRIVATE_NO_STORE = { 'Cache-Control': 'private, no-store' } as const
 const SELECTOR_SCOPE_NOT_FOUND = 'Selector scope not found'
 
+/**
+ * Opening a workflow loads every dropdown's list plus a detail lookup per
+ * selected value, which exceeds the default 60-request burst on larger rules.
+ */
+const SELECTOR_USER_RATE_LIMIT = {
+  maxTokens: 300,
+  refillRate: 150,
+  refillIntervalMs: 60_000,
+} as const
+
 const selectorOperationErrorPolicy = extendInternalErrorPolicy(
   internalOrchestrationErrorPolicy,
   (error) => {
@@ -82,7 +92,10 @@ export const POST = defineInternalJsonRoute({
   contract: executeSelectorContract,
   auth: internalSessionAuth,
   operation: selectorOperations.execute,
-  rateLimit: internalRateLimits.user({ bucketName: 'selectors.execute' }),
+  rateLimit: internalRateLimits.user({
+    bucketName: 'selectors.execute',
+    config: SELECTOR_USER_RATE_LIMIT,
+  }),
   errorPolicy: selectorErrorPolicy,
   parseOptions: { maxBodyBytes: 256 * 1024 },
   mapInput: ({ body }, { request }) => ({ ...body, signal: request.signal, auditRequest: request }),

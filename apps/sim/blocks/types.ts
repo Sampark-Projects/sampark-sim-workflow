@@ -512,6 +512,8 @@ export interface SubBlockConfig {
    * secret shown as `stripe_key` cannot be referenced as `{{stripe_key}}`.
    */
   preserveLabelCase?: boolean
+  /** Dropdown-specific: show a control in the field that clears the selection. */
+  clearable?: boolean
   // Combobox specific: Enable search input in dropdown
   searchable?: boolean
   /** Dropdown-specific: include static options as Cmd K search entries that preset this subblock. */
@@ -660,6 +662,11 @@ export interface BlockConfig<T extends ToolResponse = ToolResponse> {
   triggerAllowed?: boolean
   authMode?: AuthMode
   singleInstance?: boolean
+  /**
+   * Set to false for a block that never runs in Sim (an ITSM rule step), so its
+   * card offers no "On error" branch and its editor no retry settings.
+   */
+  errorOutput?: boolean
   tools: {
     access: string[]
     config?: {

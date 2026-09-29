@@ -1114,7 +1114,7 @@ export const FileV5Block: BlockConfig<FileParserV3Output> = {
     'Read, search, get content, fetch, write, append, compress, decompress, and manage sharing for files',
   longDescription:
     'Read workspace file objects, search indexed text across the workspace or selected folder scopes, extract the text content of files, fetch and parse files from URLs with optional headers, write new workspace files, append content to existing files, compress files into a .zip archive, extract a .zip archive into the workspace, or manage the public share link for a file.',
-  hideFromToolbar: false,
+  hideFromToolbar: true,
   bestPractices: `
   - Read returns workspace file objects in the "files" output and does NOT include their text. It accepts selected files, canonical file IDs, or one or more workspace folders expanded at run time. Use it to pick files or pass file references downstream (e.g. as attachments).
   - Get Content is how you read file text. It accepts file objects, canonical file IDs, or one or more workspace folders and returns a "contents" array with one extracted text string per file (PDF, DOCX, CSV, etc. are parsed automatically).

@@ -22,6 +22,7 @@ export type SubBlockType =
   | 'checkbox-list'
   | 'grouped-checkbox-list'
   | 'condition-input'
+  | 'itsm-condition-input'
   | 'eval-input'
   | 'time-input'
   | 'oauth-input'

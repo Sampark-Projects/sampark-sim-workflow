@@ -86,6 +86,8 @@ interface DropdownProps {
   searchable?: boolean
   /** Render option labels verbatim instead of lowercasing them */
   preserveLabelCase?: boolean
+  /** Show a control that clears the selection */
+  clearable?: boolean
 }
 
 /**
@@ -113,6 +115,7 @@ export const Dropdown = memo(function Dropdown({
   dependsOn,
   searchable = false,
   preserveLabelCase = false,
+  clearable = false,
 }: DropdownProps) {
   const activeSearchTarget = useActiveSearchTarget()
   const { getDeniedOperations, resolveDefaultOperation, isPermissionLoading } = useOperationAccess()
@@ -438,6 +441,12 @@ export const Dropdown = memo(function Dropdown({
     [isPreview, disabled, setStoreValue]
   )
 
+  const handleClear = useCallback(() => {
+    if (!isPreview && !disabled) {
+      setStoreValue(multiSelect ? [] : '')
+    }
+  }, [isPreview, disabled, multiSelect, setStoreValue])
+
   /**
    * Custom overlay content for multi-select mode. Shows at most two badges
    * and folds the rest into a "+N" badge, matching the summary notation used
@@ -514,6 +523,7 @@ export const Dropdown = memo(function Dropdown({
       multiSelectValues={multiSelect ? (multiValues ?? undefined) : undefined}
       onChange={handleChange}
       onMultiSelectChange={handleMultiSelectChange}
+      onClear={clearable ? handleClear : undefined}
       placeholder={placeholder}
       /* The operation list only drops denied entries once the config resolves,
          and a pick here persists — matching the agent tool selector. */

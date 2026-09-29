@@ -1,4 +1,5 @@
 import { generateId } from '@sim/utils/id'
+import { ITSM_START_BLOCK_TYPE } from '@/lib/itsm/rules/block-types'
 import { getEffectiveBlockOutputs } from '@/lib/workflows/blocks/block-outputs'
 import { createDefaultInputFormatField } from '@/lib/workflows/input-format'
 import { getBlock } from '@/blocks'
@@ -11,7 +12,11 @@ export interface DefaultWorkflowArtifacts {
   startBlockId: string
 }
 
-const START_BLOCK_TYPE = 'start_trigger'
+/**
+ * Every workflow in this deployment is an ITSM rule, so a new workflow starts
+ * at the ITSM start block rather than Sim's run-oriented Start block.
+ */
+const START_BLOCK_TYPE = ITSM_START_BLOCK_TYPE
 const DEFAULT_START_POSITION = { x: 0, y: 0 }
 
 function cloneDefaultValue(value: unknown): unknown {

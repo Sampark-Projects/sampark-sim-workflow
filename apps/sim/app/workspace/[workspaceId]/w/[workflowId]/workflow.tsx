@@ -53,6 +53,7 @@ import {
   DEFAULT_VERTICAL_SPACING,
 } from '@/lib/workflows/autolayout/constants'
 import { getDefaultBlockName } from '@/lib/workflows/blocks/canvas-presentation'
+import { isConditionBranchBlockType } from '@/lib/workflows/dynamic-handle-topology'
 import { requestNoteImage, requestNoteRename } from '@/lib/workflows/notes/canvas-requests'
 import { TriggerUtils } from '@/lib/workflows/triggers/triggers'
 import { ConnectOAuthModal } from '@/app/workspace/[workspaceId]/components/connect-oauth-modal'
@@ -1738,7 +1739,7 @@ const WorkflowContent = React.memo(
 
     /** Determines the appropriate source handle based on block type. */
     const determineSourceHandle = useCallback((block: { id: string; type: string }) => {
-      if (block.type === 'condition') {
+      if (isConditionBranchBlockType(block.type)) {
         const conditionHandles = document.querySelectorAll(
           `[data-nodeid^="${block.id}"][data-handleid^="condition-"]`
         )

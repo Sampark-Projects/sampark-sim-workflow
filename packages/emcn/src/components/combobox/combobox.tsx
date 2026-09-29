@@ -16,7 +16,7 @@ import {
 } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { cva, type VariantProps } from 'class-variance-authority'
-import { Check, ChevronDown, Loader, Search } from '../../icons'
+import { Check, ChevronDown, Loader, Search, X } from '../../icons'
 import { cn } from '../../lib/cn'
 import { Button } from '../button/button'
 import { chipActiveSurfaceClass, chipHoverSurfaceClass } from '../chip/chip-chrome'
@@ -94,6 +94,11 @@ export interface ComboboxProps
   onChange?: (value: string) => void
   /** Callback when multi-select values change */
   onMultiSelectChange?: (values: string[]) => void
+  /**
+   * Clears the selection. When provided, a clear button shows in the trigger
+   * whenever something is selected (select-only mode).
+   */
+  onClear?: () => void
   /** Placeholder text when no value is selected */
   placeholder?: string
   /** Whether the combobox is disabled */
@@ -192,6 +197,7 @@ const Combobox = memo(
         multiSelectValues,
         onChange,
         onMultiSelectChange,
+        onClear,
         placeholder = 'Select...',
         disabled,
         editable = false,
@@ -354,6 +360,11 @@ const Combobox = memo(
         () => allOptions.find((opt) => opt.value === effectiveSelectedValue),
         [allOptions, effectiveSelectedValue]
       )
+
+      const showClear =
+        Boolean(onClear) &&
+        !disabled &&
+        (multiSelect ? (multiSelectValues?.length ?? 0) > 0 : Boolean(value))
 
       /**
        * Label rendered in the collapsed trigger for multi-select mode.
@@ -881,6 +892,20 @@ const Combobox = memo(
                         overlayContent && 'text-transparent'
                       )}
                     />
+                    {showClear && (
+                      <button
+                        type='button'
+                        aria-label='Clear selection'
+                        className='ml-1 flex size-4 shrink-0 items-center justify-center rounded-sm border-0 bg-transparent p-0 text-[var(--text-icon)] opacity-60 transition-opacity hover-hover:opacity-100'
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onClear?.()
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <X className='size-3' />
+                      </button>
+                    )}
                     <ChevronDown
                       className={cn(
                         'ml-2 size-4 shrink-0 opacity-50 transition-transform',
@@ -888,7 +913,12 @@ const Combobox = memo(
                       )}
                     />
                     {overlayContent && (
-                      <div className='pointer-events-none absolute inset-y-0 right-[24px] left-0 flex items-center px-2'>
+                      <div
+                        className={cn(
+                          'pointer-events-none absolute inset-y-0 left-0 flex items-center px-2',
+                          showClear ? 'right-[44px]' : 'right-[24px]'
+                        )}
+                      >
                         <OverflowText label={visualLabel} className='w-full' tooltipEnabled={false}>
                           {overlayContent}
                         </OverflowText>

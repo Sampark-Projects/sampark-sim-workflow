@@ -16,6 +16,7 @@ import { Handle, type Node, type NodeProps, Position } from '@xyflow/react'
 import { Command } from 'cmdk'
 import { useParams } from 'next/navigation'
 import { usePostHog } from 'posthog-js/react'
+import { ITSM_STEP_BLOCK_TYPES } from '@/lib/itsm/rules/block-types'
 import { captureEvent } from '@/lib/posthog/client'
 import {
   CommandFadedList,
@@ -40,6 +41,10 @@ import type {
   SearchBlockItem,
   SearchToolOperationItem,
 } from '@/stores/modals/search/types'
+
+/** The ITSM rule builder connects only its own blocks: no tools or tool operations. */
+const EMPTY_TOOLS: SearchBlockItem[] = []
+const EMPTY_TOOL_OPERATIONS: SearchToolOperationItem[] = []
 
 export const CONNECTION_BLOCK_SELECTOR_NODE_ID = '__connection-block-selector__'
 
@@ -164,7 +169,9 @@ export function ConnectionBlockSelector({ id, data }: NodeProps<ConnectionBlockS
   const deferredSearch = useDeferredValue(search)
   const isSearching = deferredSearch.trim().length > 0
   const recentStorageKey = `${RECENT_SELECTION_STORAGE_PREFIX}:${workspaceId}`
-  const { blocks, tools, toolOperations } = useSearchModalStore((state) => state.data)
+  const blocks = useSearchModalStore((state) => state.data.blocks)
+  const tools = EMPTY_TOOLS
+  const toolOperations = EMPTY_TOOL_OPERATIONS
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -193,12 +200,15 @@ export function ConnectionBlockSelector({ id, data }: NodeProps<ConnectionBlockS
     }
   }, [recentStorageKey])
 
+  /** The ITSM rule blocks, in toolbar order; the Start block is placed once per rule. */
   const availableBlocks = useMemo(
     () =>
-      blocks.filter(
-        (block) => !block.sourceWorkflowId || block.sourceWorkflowId !== currentWorkflowId
-      ),
-    [blocks, currentWorkflowId]
+      blocks
+        .filter((block) => ITSM_STEP_BLOCK_TYPES.includes(block.type))
+        .sort(
+          (a, b) => ITSM_STEP_BLOCK_TYPES.indexOf(a.type) - ITSM_STEP_BLOCK_TYPES.indexOf(b.type)
+        ),
+    [blocks]
   )
 
   const availableTools = useMemo(

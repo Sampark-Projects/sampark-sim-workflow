@@ -59,6 +59,7 @@ import { createCommands } from '@/app/workspace/[workspaceId]/utils/commands-uti
 import {
   Deploy,
   Editor,
+  ItsmSave,
   Toolbar,
 } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components'
 import {
@@ -770,6 +771,11 @@ export const Panel = memo(function Panel() {
                 {isChatOpen ? <BubbleChatClose /> : <BubbleChatPreview />}
               </Button>
             </div>
+
+            <ItsmSave
+              workflowId={activeWorkflowId ?? null}
+              disabled={!userPermissions.canEdit || isSnapshotView}
+            />
           </div>
 
           {/* Tabs */}

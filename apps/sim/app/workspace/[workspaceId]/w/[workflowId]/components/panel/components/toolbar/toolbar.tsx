@@ -24,6 +24,7 @@ import {
 import { ChevronDown, Search } from '@sim/emcn/icons'
 import { useParams } from 'next/navigation'
 import { usePostHog } from 'posthog-js/react'
+import { ITSM_START_BLOCK_TYPE, ITSM_STEP_BLOCK_TYPES } from '@/lib/itsm/rules/block-types'
 import { captureEvent } from '@/lib/posthog/client'
 import { getTriggersForSidebar, hasTriggerCapability } from '@/lib/workflows/triggers/trigger-utils'
 import {
@@ -31,8 +32,6 @@ import {
   ToolbarItemContextMenu,
 } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/toolbar/components'
 import { useToolbarItemInteractions } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/toolbar/hooks'
-import { LoopTool } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/loop/loop-config'
-import { ParallelTool } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/subflows/parallel/parallel-config'
 import { BlockTile } from '@/blocks/block-tile'
 import { buildCustomBlockConfig, isCustomBlockType } from '@/blocks/custom/build-config'
 import { useCustomBlockOverlayVersion } from '@/blocks/custom/client-overlay'
@@ -169,7 +168,10 @@ function syncCachesToOverlayVersion(version: number) {
 function getTriggers(overlayVersion: number): BlockItem[] {
   syncCachesToOverlayVersion(overlayVersion)
   if (cachedTriggers === null) {
-    const allTriggers = getTriggersForSidebar()
+    /** This deployment only builds ITSM rules, whose single entry point is the ITSM start block. */
+    const allTriggers = getTriggersForSidebar().filter(
+      (trigger) => trigger.type === ITSM_START_BLOCK_TYPE
+    )
     const priorityOrder = ['Start', 'Schedule', 'Webhook Trigger']
 
     const sortedTriggers = allTriggers.sort((a, b) => {
@@ -214,7 +216,7 @@ function ensureBlockCaches() {
   // Exclude custom (deploy-as-block) blocks — they render in their own reactive
   // "Custom Blocks" section, never in the static Core Blocks / Integrations caches.
   const regularBlockConfigs = getCanonicalBlocksByCategory('blocks').filter(
-    (b) => !isCustomBlockType(b.type)
+    (b) => !isCustomBlockType(b.type) && ITSM_STEP_BLOCK_TYPES.includes(b.type)
   )
   const toolConfigs = getCanonicalBlocksByCategory('tools').filter(
     (b) => !isCustomBlockType(b.type)
@@ -228,22 +230,6 @@ function ensureBlockCaches() {
     bgColor: block.bgColor,
   }))
 
-  regularBlockItems.push({
-    name: LoopTool.name,
-    type: LoopTool.type,
-    icon: LoopTool.icon,
-    bgColor: LoopTool.bgColor,
-    docsLink: LoopTool.docsLink,
-  })
-
-  regularBlockItems.push({
-    name: ParallelTool.name,
-    type: ParallelTool.type,
-    icon: ParallelTool.icon,
-    bgColor: ParallelTool.bgColor,
-    docsLink: ParallelTool.docsLink,
-  })
-
   const toolItems: BlockItem[] = toolConfigs.map((block) => ({
     name: block.name,
     type: block.type,
@@ -252,7 +238,9 @@ function ensureBlockCaches() {
     bgColor: block.bgColor,
   }))
 
-  regularBlockItems.sort((a, b) => a.name.localeCompare(b.name))
+  regularBlockItems.sort(
+    (a, b) => ITSM_STEP_BLOCK_TYPES.indexOf(a.type) - ITSM_STEP_BLOCK_TYPES.indexOf(b.type)
+  )
   toolItems.sort((a, b) => a.name.localeCompare(b.name))
 
   cachedBlocks = regularBlockItems
@@ -814,8 +802,8 @@ export const Toolbar = memo(
         {/* Single scroll container with three collapsible sections */}
         <div className='flex flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-none pb-3'>
           <ToolbarSection
-            label='Triggers'
-            tooltip='Events that start a workflow'
+            label='Start'
+            tooltip='Where the rule begins'
             sectionKey='triggers'
             items={filteredTriggers}
             isTrigger={true}
@@ -829,8 +817,8 @@ export const Toolbar = memo(
             onContextMenu={handleItemContextMenu}
           />
           <ToolbarSection
-            label='Core Blocks'
-            tooltip='Core building blocks for logic'
+            label='ITSM'
+            tooltip='Conditions, approvals, and assignments'
             sectionKey='blocks'
             items={filteredBlocks}
             isTrigger={false}

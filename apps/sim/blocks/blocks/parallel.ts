@@ -5,6 +5,7 @@ import type { ToolResponse } from '@/tools/types'
 export const ParallelBlock: BlockConfig<ToolResponse> = {
   type: 'parallel_ai',
   name: 'Parallel AI',
+  hideFromToolbar: true,
   description: 'Web research with Parallel AI',
   authMode: AuthMode.ApiKey,
   longDescription:

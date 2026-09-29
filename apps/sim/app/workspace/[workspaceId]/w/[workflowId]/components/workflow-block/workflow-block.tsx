@@ -55,7 +55,11 @@ import {
 import { resolveSelectedTriggerId } from '@/lib/workflows/blocks/canvas-trigger-sentence'
 import { resolveCanvasCodePreview } from '@/lib/workflows/blocks/code-preview'
 import { calculateWorkflowBlockDimensions } from '@/lib/workflows/blocks/deterministic-dimensions'
-import { getConditionRows, getRouterRows } from '@/lib/workflows/dynamic-handle-topology'
+import {
+  getBranchConditionRows,
+  getRouterRows,
+  isConditionBranchBlockType,
+} from '@/lib/workflows/dynamic-handle-topology'
 import { getDependsOnFields } from '@/lib/workflows/subblocks/dependencies'
 import {
   getDisplayValue,
@@ -972,8 +976,9 @@ export const WorkflowBlock = memo(function WorkflowBlock({
    * one row per condition statement with its own output handle.
    */
   const conditionRows = useMemo(() => {
-    if (type !== 'condition') return [] as { id: string; title: string; value: string }[]
-    return getConditionRows(id, topologySubBlocks.conditions?.value).map((cond) => ({
+    if (!isConditionBranchBlockType(type))
+      return [] as { id: string; title: string; value: string }[]
+    return getBranchConditionRows(type, id, topologySubBlocks).map((cond) => ({
       ...cond,
       value: getDisplayValue(cond.value),
     }))
@@ -1024,7 +1029,7 @@ export const WorkflowBlock = memo(function WorkflowBlock({
    * narrate an action the block is not going to run.
    */
   const sentenceData = useMemo(() => {
-    if (type === 'condition' || type === 'router_v2') return null
+    if (isConditionBranchBlockType(type) || type === 'router_v2') return null
     const visibleSubBlocksById = new Map<string, SubBlockConfig>()
     for (const subBlock of chipBlocks) visibleSubBlocksById.set(subBlock.id, subBlock)
     for (const row of subBlockRows) {
@@ -1154,7 +1159,7 @@ export const WorkflowBlock = memo(function WorkflowBlock({
 
   const webhookProviderName = webhookProvider ? getProviderName(webhookProvider) : undefined
 
-  const isBranchBlock = type === 'condition' || type === 'router_v2'
+  const isBranchBlock = isConditionBranchBlockType(type) || type === 'router_v2'
 
   const sentence = sentenceData ? (
     <CanvasSentenceView
@@ -1208,50 +1213,49 @@ export const WorkflowBlock = memo(function WorkflowBlock({
       </>
     )
 
-  const rows =
-    type === 'condition' || type === 'router_v2' ? null : (
-      <>
-        {subBlockRows.map((row, rowIndex) =>
-          row.flatMap((subBlock) => {
-            const rawValue = subBlockState[subBlock.id]?.value
-            if (subBlock.type === 'mcp-dynamic-args') {
-              const args = (rawValue && typeof rawValue === 'object' ? rawValue : {}) as Record<
-                string,
-                unknown
-              >
-              return getDisplayableMcpParamNames(subBlockState._toolSchema?.value, rawValue).map(
-                (paramName) => (
-                  <SubBlockRow
-                    key={`${subBlock.id}-${paramName}-${rowIndex}`}
-                    title={formatParameterLabel(paramName)}
-                    value={getDisplayValue(args[paramName])}
-                  />
-                )
+  const rows = isBranchBlock ? null : (
+    <>
+      {subBlockRows.map((row, rowIndex) =>
+        row.flatMap((subBlock) => {
+          const rawValue = subBlockState[subBlock.id]?.value
+          if (subBlock.type === 'mcp-dynamic-args') {
+            const args = (rawValue && typeof rawValue === 'object' ? rawValue : {}) as Record<
+              string,
+              unknown
+            >
+            return getDisplayableMcpParamNames(subBlockState._toolSchema?.value, rawValue).map(
+              (paramName) => (
+                <SubBlockRow
+                  key={`${subBlock.id}-${paramName}-${rowIndex}`}
+                  title={formatParameterLabel(paramName)}
+                  value={getDisplayValue(args[paramName])}
+                />
               )
-            }
-            const metaIcon = getMetaIcon(subBlock)
-            return [
-              <SubBlockRow
-                key={`${subBlock.id}-${rowIndex}`}
-                title={getCanvasRowTitle(subBlock)}
-                value={getDisplayValue(rawValue)}
-                subBlock={subBlock}
-                rawValue={rawValue}
-                workspaceId={workspaceId}
-                workflowId={currentWorkflowId}
-                blockId={id}
-                allSubBlockValues={subBlockState}
-                displayAdvancedOptions={effectiveAdvanced}
-                canonicalIndex={canonicalIndex}
-                canonicalModeOverrides={canonicalModeOverrides}
-                variant={metaIcon ? 'meta' : 'row'}
-                icon={metaIcon ?? undefined}
-              />,
-            ]
-          })
-        )}
-      </>
-    )
+            )
+          }
+          const metaIcon = getMetaIcon(subBlock)
+          return [
+            <SubBlockRow
+              key={`${subBlock.id}-${rowIndex}`}
+              title={getCanvasRowTitle(subBlock)}
+              value={getDisplayValue(rawValue)}
+              subBlock={subBlock}
+              rawValue={rawValue}
+              workspaceId={workspaceId}
+              workflowId={currentWorkflowId}
+              blockId={id}
+              allSubBlockValues={subBlockState}
+              displayAdvancedOptions={effectiveAdvanced}
+              canonicalIndex={canonicalIndex}
+              canonicalModeOverrides={canonicalModeOverrides}
+              variant={metaIcon ? 'meta' : 'row'}
+              icon={metaIcon ?? undefined}
+            />,
+          ]
+        })
+      )}
+    </>
+  )
 
   return (
     <WorkflowBlockView
@@ -1275,6 +1279,10 @@ export const WorkflowBlock = memo(function WorkflowBlock({
       hasContentBelowHeader={hasContentBelowHeader}
       conditionRows={conditionRows}
       routerRows={routerRows}
+      errorRowAvailable={showsErrorRow}
+      branchLayout={
+        isConditionBranchBlockType(type) ? 'condition' : type === 'router_v2' ? 'router' : null
+      }
       routerContextValue={getDisplayValue(subBlockState.context?.value)}
       wouldCreateConnectionCycle={wouldCreateConnectionCycle}
       isWorkflowSelector={isWorkflowSelector}

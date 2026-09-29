@@ -1,4 +1,5 @@
 import { BLOCK_DIMENSIONS } from '@sim/workflow-renderer/dimensions'
+import { isConditionBranchBlockType } from '@/lib/workflows/dynamic-handle-topology'
 
 interface WorkflowBlockDimensionsInput {
   blockType: string
@@ -29,10 +30,11 @@ export function calculateWorkflowBlockDimensions({
   sentenceLineCount = 0,
   hasErrorRow = false,
 }: WorkflowBlockDimensionsInput): { width: number; height: number } {
-  const isBranchBlock = blockType === 'condition' || blockType === 'router_v2'
+  const isConditionLayout = isConditionBranchBlockType(blockType)
+  const isBranchBlock = isConditionLayout || blockType === 'router_v2'
 
   let rowsCount = 0
-  if (blockType === 'condition') {
+  if (isConditionLayout) {
     rowsCount = conditionRowCount
   } else if (blockType === 'router_v2') {
     rowsCount = 1 + routerRowCount

@@ -1,5 +1,6 @@
 import type { ServerSelectorKey } from '@/lib/selectors/manifest'
 import { internalSelectorAttachments } from '@/lib/selectors/server/internal'
+import { itsmSelectorAttachments } from '@/lib/selectors/server/itsm'
 import { airtableSelectorAttachments } from '@/lib/selectors/server/providers/airtable'
 import { asanaSelectorAttachments } from '@/lib/selectors/server/providers/asana'
 import { attioSelectorAttachments } from '@/lib/selectors/server/providers/attio'
@@ -36,6 +37,7 @@ import type { ServerSelectorAttachment } from '@/lib/selectors/server/types'
 
 export const serverSelectorRegistry = {
   ...internalSelectorAttachments,
+  ...itsmSelectorAttachments,
   ...mcpSelectorAttachments,
   ...airtableSelectorAttachments,
   ...asanaSelectorAttachments,

@@ -58,11 +58,15 @@ export function showsCanvasDefaultHandles(
  * holds a row whether or not the toggle is set.
  */
 export function showsCanvasErrorRow(
-  config: Pick<BlockConfig, 'category'>,
+  config: Pick<BlockConfig, 'category' | 'errorOutput'>,
   type: string,
   displayTriggerMode: boolean
 ): boolean {
-  return showsCanvasDefaultHandles(config, type, displayTriggerMode) && type !== 'response'
+  return (
+    config.errorOutput !== false &&
+    showsCanvasDefaultHandles(config, type, displayTriggerMode) &&
+    type !== 'response'
+  )
 }
 
 interface CanvasChipSplitOptions {

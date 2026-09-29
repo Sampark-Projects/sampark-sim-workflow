@@ -12,6 +12,7 @@ const HIGHLIGHTS_IDENTITY_FIELD = ['highlightsUserEmail', 'highlightsUserId'] as
 export const LogRocketBlock: BlockConfig = {
   type: 'logrocket',
   name: 'LogRocket',
+  hideFromToolbar: true,
   description: 'Summarize sessions, manage users, and tag releases in LogRocket',
   longDescription:
     'Integrate LogRocket into your workflow to request AI session highlights for a user, poll for the result, list exported session files, read the audit log, create or update user profiles, and register releases so source maps decode their stack traces.',

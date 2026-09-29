@@ -11,6 +11,10 @@ import {
   prepareBlockMetrics,
   snapNodesToGrid,
 } from '@/lib/workflows/autolayout/utils'
+import {
+  getBranchConditionRows,
+  isConditionBranchBlockType,
+} from '@/lib/workflows/dynamic-handle-topology'
 import { EDGE } from '@/executor/constants'
 import type { BlockState } from '@/stores/workflows/workflow/types'
 
@@ -38,22 +42,15 @@ function getSourceHandleYOffset(node: GraphNode, sourceHandle?: string | null): 
     return HANDLE_POSITIONS.SUBFLOW_CONNECTION_Y
   }
 
-  if (block.type === 'condition' && sourceHandle?.startsWith(EDGE.CONDITION_PREFIX)) {
-    const conditionId = sourceHandle.replace(EDGE.CONDITION_PREFIX, '')
-    try {
-      const conditionsValue = block.subBlocks?.conditions?.value
-      if (typeof conditionsValue === 'string' && conditionsValue) {
-        const conditions = JSON.parse(conditionsValue) as Array<{ id?: string }>
-        const conditionIndex = conditions.findIndex((c) => c.id === conditionId)
-        if (conditionIndex >= 0) {
-          return (
-            HANDLE_POSITIONS.CONDITION_START_Y +
-            conditionIndex * HANDLE_POSITIONS.CONDITION_ROW_HEIGHT
-          )
-        }
-      }
-    } catch {
-      // Fall back to default offset
+  if (isConditionBranchBlockType(block.type) && sourceHandle?.startsWith(EDGE.CONDITION_PREFIX)) {
+    const conditionId = sourceHandle.slice(EDGE.CONDITION_PREFIX.length)
+    const conditionIndex = getBranchConditionRows(block.type, block.id, block.subBlocks).findIndex(
+      (row) => row.id === conditionId
+    )
+    if (conditionIndex >= 0) {
+      return (
+        HANDLE_POSITIONS.CONDITION_START_Y + conditionIndex * HANDLE_POSITIONS.CONDITION_ROW_HEIGHT
+      )
     }
   }
 
