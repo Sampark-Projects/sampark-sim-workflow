@@ -6,10 +6,7 @@ import {
   type PublishItsmRuleResponse,
 } from '@/lib/api/contracts/itsm-rules'
 import { OrchestrationError } from '@/lib/core/orchestration/types'
-import {
-  ItsmGatewayNotConfiguredError,
-  ItsmGatewayRequestError,
-} from '@/lib/itsm/master-data/gateway.server'
+import { ItsmGatewayRequestError } from '@/lib/itsm/master-data/gateway.server'
 import { itsmRuleOperations } from '@/lib/itsm/rules/application/operations'
 import {
   collectItsmMasterDataNeeds,
@@ -93,12 +90,6 @@ export const publishItsmRule = defineAuthorizedWorkflowUseCase({
     try {
       lookup = await loadItsmMasterDataLookup(customerId, collectItsmMasterDataNeeds(graph))
     } catch (error) {
-      if (error instanceof ItsmGatewayNotConfiguredError) {
-        throw new OrchestrationError(
-          'internal',
-          'ITSM master data is not configured on this server'
-        )
-      }
       if (error instanceof ItsmGatewayRequestError) {
         logger.error('Could not load ITSM master data for rule publish', {
           workflowId: context.workflowId,
