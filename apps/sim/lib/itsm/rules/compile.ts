@@ -196,6 +196,11 @@ export function compileItsmRule(
   }
 
   const startNodeId = nextFrom(start, SOURCE_HANDLE, 'The start block')
+  /** ITSM stores only rules with at least one step, so an empty rule is not saved. */
+  if (!startNodeId) {
+    issues.error(start, 'Connect at least one block to the Start block before saving.')
+    return { rule: null, errors: issues.errors, warnings: issues.warnings }
+  }
 
   const nodes: ItsmRuleNode[] = []
   const visited = new Set<string>()
@@ -304,12 +309,12 @@ function compileCondition(
       const rows: ItsmRuleConditionRow[] = []
       for (const row of group.rows) {
         if (!row.field) {
-          issues.error(block, `Branch "${branchName}": choose a field for every condition.`)
+          issues.error(block, `Condition "${branchName}": choose a field for every row.`)
           continue
         }
         const fieldConfig = ITSM_CONDITION_FIELDS[row.field]
         if (row.values.length === 0) {
-          issues.error(block, `Branch "${branchName}": pick at least one ${fieldConfig.label}.`)
+          issues.error(block, `Condition "${branchName}": pick at least one ${fieldConfig.label}.`)
           continue
         }
         if (fieldConfig.parent?.mode === 'required') {
@@ -323,7 +328,7 @@ function compileCondition(
           if (!hasParent) {
             issues.error(
               block,
-              `Branch "${branchName}": a ${fieldConfig.label} condition needs a ${ITSM_CONDITION_FIELDS[parentField].label} condition in the same group.`
+              `Condition "${branchName}": a ${fieldConfig.label} row needs a ${ITSM_CONDITION_FIELDS[parentField].label} row in the same group.`
             )
           }
         }
@@ -337,7 +342,7 @@ function compileCondition(
           if (!option) {
             issues.error(
               block,
-              `Branch "${branchName}": ${fieldConfig.label} "${value.label}" no longer exists in ITSM.`
+              `Condition "${branchName}": ${fieldConfig.label} "${value.label}" no longer exists in ITSM.`
             )
             continue
           }
@@ -348,13 +353,13 @@ function compileCondition(
       return rows.length > 0 ? [{ all: rows }] : []
     })
     if (groups.length === 0 && issues.errors.length === errorsBefore) {
-      issues.error(block, `Branch "${branchName}" has no conditions.`)
+      issues.error(block, `Condition "${branchName}" is empty. Add at least one row.`)
     }
     return {
       id: branch.id,
       label: branch.label,
       when: { any: groups },
-      next: nextFrom(block, `${EDGE.CONDITION_PREFIX}${branch.id}`, `Branch "${branchName}"`),
+      next: nextFrom(block, `${EDGE.CONDITION_PREFIX}${branch.id}`, `Condition "${branchName}"`),
     }
   })
 
@@ -364,7 +369,7 @@ function compileCondition(
     label: block.name,
     branches: compiled,
     elseNext: elseBranch
-      ? nextFrom(block, `${EDGE.CONDITION_PREFIX}${elseBranch.id}`, 'The else branch')
+      ? nextFrom(block, `${EDGE.CONDITION_PREFIX}${elseBranch.id}`, 'The else condition')
       : null,
   }
 }
