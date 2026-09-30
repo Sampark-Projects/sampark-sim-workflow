@@ -51,6 +51,7 @@ import {
   type SidebarNavItemData,
   SidebarSection,
   SidebarTooltip,
+  SidebarVersion,
   StatusNotice,
   WorkflowList,
   WorkspaceHeader,
@@ -1467,6 +1468,8 @@ export const Sidebar = memo(function Sidebar() {
                 />
               </>
             )}
+
+            <SidebarVersion />
           </div>
         </aside>
 
