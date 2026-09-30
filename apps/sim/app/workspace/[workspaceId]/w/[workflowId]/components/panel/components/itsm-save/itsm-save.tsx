@@ -49,7 +49,7 @@ export function ItsmSave({ workflowId, disabled = false }: ItsmSaveProps) {
         return
       }
       if (result.warnings.length > 0) setReport({ errors: [], warnings: result.warnings })
-      toast.success('Saved and sent to ITSM')
+      toast.success('Saved')
     } catch (error) {
       toast.error(getErrorMessage(error, 'Could not save the rule'))
     }
