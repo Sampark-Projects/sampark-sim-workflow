@@ -180,12 +180,12 @@ export function ItsmConditionInput({
               <span className='shrink-0 text-[var(--text-tertiary)] text-sm'>{title}</span>
               {isElse ? (
                 <span className='truncate text-[var(--text-muted)] text-sm'>
-                  No branch above matched
+                  No condition above matched
                 </span>
               ) : (
                 <div className='flex items-center gap-2'>
                   <BranchAction
-                    label='Add branch below'
+                    label='Add new condition below'
                     onClick={() => addBranch(branch.id)}
                     disabled={readOnly}
                   >
@@ -284,7 +284,7 @@ function BranchEditor({ branch, fieldOptions, readOnly, onChange }: BranchEditor
           const label = event.target.value
           onChange((current) => ({ ...current, label }))
         }}
-        placeholder='Branch name (optional)'
+        placeholder='Condition name (optional)'
         disabled={readOnly}
       />
       {branch.groups.map((group, groupIndex) => (

@@ -281,10 +281,15 @@ describe('compileItsmRule', () => {
     })
   })
 
-  it('sends an empty rule when nothing follows the start block', () => {
+  it('refuses to save a rule with nothing after the start block', () => {
     const { rule, errors } = compileItsmRule(graph([block('start', 'itsm_start')], []), lookup)
-    expect(errors).toEqual([])
-    expect(rule).toMatchObject({ startNodeId: null, nodes: [] })
+    expect(rule).toBeNull()
+    expect(errors).toEqual([
+      expect.objectContaining({
+        blockId: 'start',
+        message: 'Connect at least one block to the Start block before saving.',
+      }),
+    ])
   })
 
   it('requires exactly one start block', () => {
@@ -362,7 +367,7 @@ describe('compileItsmRule', () => {
       [{ source: 'start', sourceHandle: 'source', target: 'cond' }]
     )
     expect(compileItsmRule(input, lookup).errors[0]?.message).toMatch(
-      /Subcategory condition needs a Category condition/
+      /Subcategory row needs a Category row/
     )
   })
 

@@ -13,7 +13,11 @@ import {
   compileItsmRule,
   type ItsmRuleGraph,
 } from '@/lib/itsm/rules/compile'
-import { deliverItsmRuleSavedEvent } from '@/lib/itsm/rules/deliver'
+import {
+  deliverItsmRuleSavedEvent,
+  ItsmRuleDeliveryUnavailableError,
+  ItsmRuleRejectedError,
+} from '@/lib/itsm/rules/deliver'
 import { loadItsmMasterDataLookup } from '@/lib/itsm/rules/master-data-lookup.server'
 import { findItsmCustomerIdByOrganizationId } from '@/lib/itsm/sync/link'
 import { defineAuthorizedWorkflowUseCase } from '@/lib/workflows/application/authorized-workflow-use-case'
@@ -118,7 +122,20 @@ export const publishItsmRule = defineAuthorizedWorkflowUseCase({
       },
       rule,
     }
-    await deliverItsmRuleSavedEvent(event)
+    try {
+      await deliverItsmRuleSavedEvent(event)
+    } catch (error) {
+      if (error instanceof ItsmRuleRejectedError) {
+        throw new OrchestrationError('validation', `ITSM did not accept the rule: ${error.message}`)
+      }
+      if (error instanceof ItsmRuleDeliveryUnavailableError) {
+        throw new OrchestrationError(
+          'internal',
+          'Could not send the rule to ITSM. Try again in a moment.'
+        )
+      }
+      throw error
+    }
     return { status: 'published', event, warnings }
   },
 })
