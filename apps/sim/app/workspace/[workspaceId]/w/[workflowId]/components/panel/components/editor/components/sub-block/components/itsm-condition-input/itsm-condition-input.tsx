@@ -180,12 +180,12 @@ export function ItsmConditionInput({
               <span className='shrink-0 text-[var(--text-tertiary)] text-sm'>{title}</span>
               {isElse ? (
                 <span className='truncate text-[var(--text-muted)] text-sm'>
-                  No branch above matched
+                  No condition above matched
                 </span>
               ) : (
                 <div className='flex items-center gap-2'>
                   <BranchAction
-                    label='Add branch below'
+                    label='Add new condition below'
                     onClick={() => addBranch(branch.id)}
                     disabled={readOnly}
                   >
@@ -284,7 +284,7 @@ function BranchEditor({ branch, fieldOptions, readOnly, onChange }: BranchEditor
           const label = event.target.value
           onChange((current) => ({ ...current, label }))
         }}
-        placeholder='Branch name (optional)'
+        placeholder='Condition name (optional)'
         disabled={readOnly}
       />
       {branch.groups.map((group, groupIndex) => (
@@ -455,6 +455,7 @@ function RowEditor({
       </div>
       {row.field && (
         <ValuesPicker
+          rowId={row.id}
           field={row.field}
           group={group}
           values={row.values}
@@ -467,6 +468,7 @@ function RowEditor({
 }
 
 interface ValuesPickerProps {
+  rowId: string
   field: ItsmConditionField
   group: ItsmConditionGroup
   values: ItsmConditionValue[]
@@ -475,7 +477,7 @@ interface ValuesPickerProps {
 }
 
 /** Multi-select of one field's master data, narrowed by its parent row in the same group. */
-function ValuesPicker({ field, group, values, readOnly, onChange }: ValuesPickerProps) {
+function ValuesPicker({ rowId, field, group, values, readOnly, onChange }: ValuesPickerProps) {
   const workflowId = useWorkflowRegistry((state) => state.activeWorkflowId)
   const workspaceId = useWorkflowRegistry((state) => state.hydration.workspaceId)
   const config = ITSM_CONDITION_FIELDS[field]
@@ -508,10 +510,18 @@ function ValuesPicker({ field, group, values, readOnly, onChange }: ValuesPicker
     surfaceId: `itsm-condition:${field}`,
   })
 
-  const options = useMemo<ComboboxOption[]>(
-    () => (list.data ?? []).map((option) => ({ value: option.id, label: option.label })),
-    [list.data]
-  )
+  /** A value another row of this field already holds is hidden, unless this row holds it too. */
+  const options = useMemo<ComboboxOption[]>(() => {
+    const held = new Set(values.map((value) => value.id))
+    const heldElsewhere = new Set(
+      group.rows
+        .filter((row) => row.id !== rowId && row.field === field)
+        .flatMap((row) => row.values.map((value) => value.id))
+    )
+    return (list.data ?? [])
+      .filter((option) => !heldElsewhere.has(option.id) || held.has(option.id))
+      .map((option) => ({ value: option.id, label: option.label }))
+  }, [list.data, group.rows, rowId, field, values])
 
   const labelById = useMemo(() => {
     const labels = new Map(values.map((value) => [value.id, value.label]))

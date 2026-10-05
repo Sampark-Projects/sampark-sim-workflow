@@ -2,14 +2,11 @@
 
 import { useState } from 'react'
 import { Chip, Popover, PopoverAnchor, PopoverContent, toast } from '@sim/emcn'
-import { createLogger } from '@sim/logger'
 import { getErrorMessage } from '@sim/utils/errors'
 import type { ItsmRuleIssue } from '@/lib/api/contracts/itsm-rules'
 import { useDeployReadiness } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/deploy/hooks/use-deploy-readiness'
 import { usePublishItsmRule } from '@/hooks/queries/itsm-rules'
 import { usePanelEditorStore } from '@/stores/panel'
-
-const logger = createLogger('ItsmSave')
 
 interface ItsmSaveProps {
   workflowId: string | null
@@ -51,9 +48,8 @@ export function ItsmSave({ workflowId, disabled = false }: ItsmSaveProps) {
         setReport({ errors: result.errors, warnings: result.warnings })
         return
       }
-      logger.info('ITSM rule JSON', result.event)
       if (result.warnings.length > 0) setReport({ errors: [], warnings: result.warnings })
-      toast.success('Saved and sent to ITSM')
+      toast.success('Saved')
     } catch (error) {
       toast.error(getErrorMessage(error, 'Could not save the rule'))
     }

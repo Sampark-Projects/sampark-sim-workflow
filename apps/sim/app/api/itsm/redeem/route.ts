@@ -1,7 +1,6 @@
 import { createLogger } from '@sim/logger'
 import { type NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { env } from '@/lib/core/config/env'
 import { withRouteHandler } from '@/lib/core/utils/with-route-handler'
 
 const logger = createLogger('ItsmRedeemAPI')
@@ -65,12 +64,12 @@ export const GET = withRouteHandler(async (request: NextRequest) => {
     )
   }
 
-  // Built from the app's own configured public origin, not `request.nextUrl.origin` —
-  // behind a reverse proxy that doesn't forward the original Host header, the request's
-  // own origin resolves to the container's bind address (e.g. http://0.0.0.0:3000)
-  // instead of the public domain, sending the browser to an unreachable URL.
-  const redirectUrl = new URL(redirectParam, env.NEXT_PUBLIC_APP_URL)
-  const response = NextResponse.redirect(redirectUrl, 303)
+  // A relative `Location` (valid per RFC 9110) is resolved by the browser against the origin it
+  // actually requested — the public domain, or the embedding app's dev proxy. Absolute URLs built
+  // from `request.nextUrl.origin` or `NEXT_PUBLIC_APP_URL` both break here: behind a reverse proxy
+  // the former is the container bind address (https://0.0.0.0:3000) and the latter is only as
+  // correct as the deployment's build/runtime config.
+  const response = new NextResponse(null, { status: 303, headers: { location: redirectParam } })
   const verifyHeaders = verifyResponse.headers as Headers & { getSetCookie?: () => string[] }
   for (const cookie of verifyHeaders.getSetCookie?.() ?? []) {
     response.headers.append('set-cookie', cookie)

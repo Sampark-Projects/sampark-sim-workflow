@@ -10,20 +10,31 @@ export const ITSM_ESCALATION_UNITS = [
 
 /**
  * A timed step that can sit anywhere in the rule: when the ticket has waited
- * this long without moving on, it escalates to the chosen users and continues
- * to the block this one leads to.
+ * this long without moving on, it escalates to the chosen level and users and
+ * continues to the block this one leads to.
  */
 export const ItsmEscalationBlock: BlockConfig = {
   type: ITSM_ESCALATION_BLOCK_TYPE,
   name: 'Escalation',
   description: 'Escalate the ticket when it waits too long',
   longDescription:
-    'If the ticket waits longer than this time at this point in the rule, it escalates to the chosen users and continues to the next block.',
+    'If the ticket waits longer than this time at this point in the rule, it escalates to the chosen level and users and continues to the next block.',
   category: 'blocks',
   errorOutput: false,
   bgColor: '#F59E0B',
   icon: Clock,
   subBlocks: [
+    {
+      id: 'level',
+      title: 'Level',
+      type: 'dropdown',
+      selectorKey: 'itsm.levels',
+      preserveLabelCase: true,
+      clearable: true,
+      placeholder: 'Select a level',
+      value: () => '',
+      required: true,
+    },
     {
       id: 'escalateAfter',
       title: 'Escalate after',

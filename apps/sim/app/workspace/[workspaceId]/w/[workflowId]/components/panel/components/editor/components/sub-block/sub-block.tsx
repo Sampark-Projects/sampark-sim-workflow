@@ -25,6 +25,8 @@ import {
   GroupedCheckboxList,
   InputFormat,
   InputMapping,
+  ItsmApproverGroupsInput,
+  ItsmAssigneeGroupsInput,
   ItsmConditionInput,
   KnowledgeBaseSelector,
   KnowledgeTagFilters,
@@ -864,6 +866,28 @@ function SubBlockComponent({
             subBlockId={config.id}
             isPreview={isPreview}
             previewValue={previewValue as any}
+            disabled={isDisabled}
+          />
+        )
+
+      case 'itsm-approver-groups':
+        return (
+          <ItsmApproverGroupsInput
+            blockId={blockId}
+            subBlockId={config.id}
+            isPreview={isPreview}
+            previewValue={previewValue}
+            disabled={isDisabled}
+          />
+        )
+
+      case 'itsm-assignee-groups':
+        return (
+          <ItsmAssigneeGroupsInput
+            blockId={blockId}
+            subBlockId={config.id}
+            isPreview={isPreview}
+            previewValue={previewValue}
             disabled={isDisabled}
           />
         )

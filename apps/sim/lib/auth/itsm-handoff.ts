@@ -24,9 +24,10 @@ const ITSM_HANDOFF_TOKEN_TTL_MS = 3 * 60 * 1000
 
 /**
  * Recorded as the session's user agent so an ITSM-embedded session is
- * distinguishable from an ordinary browser session in listings/audit trails.
+ * distinguishable from an ordinary browser session in listings/audit trails,
+ * and so ITSM's sign-out ends only the sessions it created.
  */
-const ITSM_SESSION_USER_AGENT = 'Sim ITSM Embed'
+export const ITSM_SESSION_USER_AGENT = 'Sim ITSM Embed'
 
 /**
  * Mints a one-time token that signs the embedded iframe in as `userId` on a

@@ -71,10 +71,11 @@ const DEFAULT_ITSM_GATEWAY_URL = 'https://itsmqa.samparkme.com/gateway'
  * on. `ITSM_GATEWAY_URL` remains a manual override for local testing against
  * a non-standard gateway; leave it unset to use the domain-based default.
  */
-function resolveItsmGatewayUrl(): string {
-  if (env.ITSM_GATEWAY_URL) return env.ITSM_GATEWAY_URL
+export function resolveItsmGatewayUrl(): string {
   const simHost = new URL(env.NEXT_PUBLIC_APP_URL).hostname
-  return ITSM_GATEWAY_URL_BY_SIM_HOST[simHost] ?? DEFAULT_ITSM_GATEWAY_URL
+  const url =
+    env.ITSM_GATEWAY_URL || ITSM_GATEWAY_URL_BY_SIM_HOST[simHost] || DEFAULT_ITSM_GATEWAY_URL
+  return url.replace(/\/+$/, '')
 }
 
 /**
@@ -85,7 +86,7 @@ async function callGateway(
   path: string,
   body: Record<string, unknown>
 ): Promise<Record<string, unknown> | null> {
-  const baseUrl = resolveItsmGatewayUrl().replace(/\/+$/, '')
+  const baseUrl = resolveItsmGatewayUrl()
   const headers = { 'Content-Type': 'application/json' }
   let response: Response
   try {
@@ -351,8 +352,8 @@ export async function listItsmUsers(customerId: string): Promise<ItsmUserOption[
 }
 
 /**
- * The approval levels (L1, L2, ...). ITSM gives every level the same id, so a
- * level is identified by its name, as the rule JSON has always carried it.
+ * The escalation levels (L1, L2, ...). ITSM gives every level the same id, so a
+ * level is identified by its name.
  */
 export async function listItsmLevels(customerId: string): Promise<ItsmMasterDataOption[]> {
   return (await independentList(customerId, 'LABEL')).map((level) => ({
