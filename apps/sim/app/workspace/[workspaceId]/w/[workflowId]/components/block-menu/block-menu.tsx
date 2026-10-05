@@ -30,7 +30,6 @@ export interface BlockMenuProps {
   onCopy: () => void
   onCut: () => void
   onPaste: () => void
-  onDuplicate: () => void
   onDelete: () => void
   onToggleEnabled: () => void
   onRemoveFromSubflow: () => void
@@ -38,17 +37,12 @@ export interface BlockMenuProps {
   onRename: () => void
   /** Prompts for an image and appends it to the note. Note blocks only. */
   onAddImage: () => void
-  onRunFromBlock?: () => void
-  onRunUntilBlock?: () => void
   hasClipboard?: boolean
   showRemoveFromSubflow?: boolean
-  /** Whether run from block is available (has snapshot, was executed, not inside subflow) */
-  canRunFromBlock?: boolean
   /** Whether to disable edit actions (user can't edit OR blocks are locked) */
   disableEdit?: boolean
   /** Whether the user has edit permission (ignoring locked state) */
   userCanEdit?: boolean
-  isExecuting?: boolean
   /** Whether the selected block is a trigger (has no incoming edges) */
   isPositionalTrigger?: boolean
   /** Callback to toggle locked state of selected blocks */
@@ -71,21 +65,16 @@ export function BlockMenu({
   onCopy,
   onCut,
   onPaste,
-  onDuplicate,
   onDelete,
   onToggleEnabled,
   onRemoveFromSubflow,
   onOpenEditor,
   onRename,
   onAddImage,
-  onRunFromBlock,
-  onRunUntilBlock,
   hasClipboard = false,
   showRemoveFromSubflow = false,
-  canRunFromBlock = false,
   disableEdit = false,
   userCanEdit = true,
-  isExecuting = false,
   isPositionalTrigger = false,
   onToggleLocked,
   canAdmin = false,
@@ -101,19 +90,12 @@ export function BlockMenu({
   // Can't enable blocks that have disabled parents
   const hasBlockWithDisabledParent = selectedBlocks.some((b) => !b.enabled && b.isParentDisabled)
 
-  const hasSingletonBlock = selectedBlocks.some(
-    (b) =>
-      TriggerUtils.requiresSingleInstance(b.type) || TriggerUtils.isSingleInstanceBlockType(b.type)
-  )
   // A block is a trigger if it's explicitly a trigger type OR has no incoming edges (positional trigger)
   const hasTriggerBlock =
     selectedBlocks.some((b) => TriggerUtils.isTriggerBlock(b)) || isPositionalTrigger
   const allNoteBlocks = selectedBlocks.every((b) => b.type === 'note')
   const isSubflow =
     isSingleBlock && (selectedBlocks[0]?.type === 'loop' || selectedBlocks[0]?.type === 'parallel')
-  const isInsideSubflow =
-    isSingleBlock &&
-    (selectedBlocks[0]?.parentType === 'loop' || selectedBlocks[0]?.parentType === 'parallel')
 
   const canRemoveFromSubflow = showRemoveFromSubflow && !hasTriggerBlock
 
@@ -174,18 +156,6 @@ export function BlockMenu({
           <span>Paste</span>
           <span className='ml-auto opacity-70 group-hover:opacity-100'>⌘V</span>
         </PopoverItem>
-        {!hasSingletonBlock && (
-          <PopoverItem
-            disabled={disableEdit}
-            onClick={() => {
-              onDuplicate()
-              onClose()
-            }}
-          >
-            Duplicate
-          </PopoverItem>
-        )}
-
         {/* Toggle and edit actions */}
         {!allNoteBlocks && <PopoverDivider />}
         {!allNoteBlocks && (
@@ -261,38 +231,6 @@ export function BlockMenu({
           >
             Open Editor
           </PopoverItem>
-        )}
-
-        {/* Run from/until block - only for single non-note block, not inside subflows */}
-        {isSingleBlock && !allNoteBlocks && !isInsideSubflow && (
-          <>
-            <PopoverDivider />
-            <PopoverItem
-              disabled={!canRunFromBlock || isExecuting}
-              onClick={() => {
-                if (canRunFromBlock && !isExecuting) {
-                  onRunFromBlock?.()
-                  onClose()
-                }
-              }}
-            >
-              Run from block
-            </PopoverItem>
-            {/* Hide "Run until" for triggers - they're always at the start */}
-            {!hasTriggerBlock && (
-              <PopoverItem
-                disabled={isExecuting}
-                onClick={() => {
-                  if (!isExecuting) {
-                    onRunUntilBlock?.()
-                    onClose()
-                  }
-                }}
-              >
-                Run until block
-              </PopoverItem>
-            )}
-          </>
         )}
 
         {/* Destructive action */}

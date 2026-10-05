@@ -397,17 +397,12 @@ export const selectorManifest = {
   'itsm.organizations': internalSelector(),
   'itsm.subcategories': internalSelector(['itsmCategoryIds'], {
     readiness: { all: ['itsmCategoryIds'] },
-    sourceFields: { itsmCategoryIds: ['assignCategory'] },
   }),
   'itsm.departments': internalSelector(),
-  'itsm.bins': internalSelector(['itsmDepartmentId'], {
-    sourceFields: { itsmDepartmentId: ['assignDepartment', 'approverDepartments'] },
-  }),
-  'itsm.allBins': internalSelector(),
+  'itsm.bins': internalSelector(['itsmDepartmentId']),
   'itsm.users': internalSelector(),
   'itsm.usersByType': internalSelector(['itsmUserType'], {
     readiness: { all: ['itsmUserType'] },
-    sourceFields: { itsmUserType: ['assignUserType'] },
   }),
   'itsm.statuses': internalSelector(),
   'itsm.severities': internalSelector(),

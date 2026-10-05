@@ -24,6 +24,7 @@ import {
   hasDisplayableRowValue,
   resolveDropdownLabel,
   resolveFolderPathLabel,
+  resolveItsmGroupsLabel,
   resolveSkillsLabel,
   resolveToolsLabel,
   resolveVariablesLabel,
@@ -173,7 +174,8 @@ function resolvePreviewDisplayValue(
      * Same decode the canvas card and the workflow diff use, and it needs no
      * hook or fetch, which is what lets it sit in this hook-free resolver.
      */
-    resolveFolderPathLabel(subBlock, rawValue)
+    resolveFolderPathLabel(subBlock, rawValue) ||
+    resolveItsmGroupsLabel(subBlock, rawValue)
 
   return maskedValue || hydratedName || (isSelectorType && value ? '-' : value)
 }

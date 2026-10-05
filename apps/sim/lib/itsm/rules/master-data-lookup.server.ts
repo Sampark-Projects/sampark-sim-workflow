@@ -35,7 +35,7 @@ function indexById<T extends ItsmMasterDataOption>(options: readonly T[]): Map<s
  */
 export async function loadItsmMasterDataLookup(
   customerId: string,
-  { lists, categoryIds, assignDepartmentIds }: ItsmMasterDataNeeds
+  { lists, categoryIds, binDepartmentIds }: ItsmMasterDataNeeds
 ): Promise<ItsmMasterDataLookup> {
   const ifNeeded = <T>(name: ItsmMasterDataListName, load: () => Promise<T[]>): Promise<T[]> =>
     lists.has(name) ? load() : Promise.resolve([])
@@ -51,7 +51,7 @@ export async function loadItsmMasterDataLookup(
     severities,
     levels,
     assignmentRules,
-    assignDepartmentBins,
+    departmentBinLists,
   ] = await Promise.all([
     ifNeeded('categories', () => listItsmCategories(customerId)),
     Promise.all(categoryIds.map((id) => listItsmSubcategories(customerId, id))),
@@ -63,7 +63,7 @@ export async function loadItsmMasterDataLookup(
     ifNeeded('severities', () => listItsmSeverities(customerId)),
     ifNeeded('levels', () => listItsmLevels(customerId)),
     ifNeeded('assignmentRules', () => listItsmAssignmentRules(customerId)),
-    listItsmBinsOfDepartments(customerId, assignDepartmentIds),
+    listItsmBinsOfDepartments(customerId, binDepartmentIds),
   ])
   const categorySubcategories = new Map(
     categoryIds.map((id, index) => [
@@ -72,7 +72,7 @@ export async function loadItsmMasterDataLookup(
     ])
   )
   const departmentBins = new Map<string, Set<string>>()
-  for (const bin of assignDepartmentBins) {
+  for (const bin of departmentBinLists) {
     if (!bin.department) continue
     const binIds = departmentBins.get(bin.department.id) ?? new Set<string>()
     binIds.add(bin.id)
