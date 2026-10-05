@@ -119,11 +119,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   return;
                 }
 
-                // Sidebar width. Mirror getMaxSidebarWidth() in stores/sidebar/store.ts:
-                // 30% of the viewport capped at 400px, and never below the 256px
-                // minimum, so a narrow window yields a width >= MIN instead of a
-                // sub-minimum sliver.
-                var defaultSidebarWidth = 256;
+                // Sidebar width. Fixed at SIDEBAR_WIDTH.DEFAULT (stores/constants.ts).
+                var defaultSidebarWidth = 196;
                 try {
                   // Collapse comes from the cookie (independent of localStorage
                   // parsing); the persisted width is read defensively below. Match the
@@ -148,12 +145,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   // The expanded width is published unconditionally, even while
                   // collapsed, because the desktop hover-peek renders the sidebar at
                   // its restore width while --sidebar-width still reads collapsed.
-                  var width = state && state.sidebarWidth;
-                  var maxSidebarWidth = Math.max(256, Math.min(400, window.innerWidth * 0.3));
-                  var expandedWidth =
-                    typeof width === 'number' && isFinite(width)
-                      ? Math.min(Math.max(width, 256), maxSidebarWidth)
-                      : defaultSidebarWidth;
+                  // The rail is fixed-width, so a width persisted from when it was
+                  // resizable is ignored.
+                  var expandedWidth = defaultSidebarWidth;
                   document.documentElement.style.setProperty(
                     '--sidebar-expanded-width',
                     expandedWidth + 'px'
@@ -167,20 +161,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   document.documentElement.style.setProperty('--sidebar-expanded-width', defaultSidebarWidth + 'px');
                 }
 
-                // Panel width and active tab
+                // Panel active tab. The panel is fixed-width (PANEL_WIDTH.DEFAULT via
+                // the --panel-width CSS default), so a persisted width is ignored.
                 try {
                   var panelStored = localStorage.getItem('panel-state');
                   if (panelStored) {
                     var panelParsed = JSON.parse(panelStored);
                     var panelState = panelParsed && panelParsed.state;
-                    var panelWidth = panelState && panelState.panelWidth;
-                    var maxPanelWidth = window.innerWidth * 0.4;
-
-                    if (panelWidth >= 290 && panelWidth <= maxPanelWidth) {
-                      document.documentElement.style.setProperty('--panel-width', panelWidth + 'px');
-                    } else if (panelWidth > maxPanelWidth) {
-                      document.documentElement.style.setProperty('--panel-width', maxPanelWidth + 'px');
-                    }
 
                     var activeTab = panelState && panelState.activeTab;
                     // A session that used the Chat tab before it was turned off still

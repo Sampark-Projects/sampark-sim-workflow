@@ -124,10 +124,14 @@ export const useSidebarStore = create<SidebarState>()(
       /**
        * Never lets a legacy persisted `isCollapsed` override the cookie-seeded
        * value — the cookie is the source of truth (handles migration cleanly).
+       *
+       * Likewise drops a persisted width: the workspace rail is fixed-width, so a
+       * width saved from when it was resizable must not widen it again.
        */
       merge: (persisted, current) => ({
         ...current,
         ...(persisted as Partial<SidebarState>),
+        sidebarWidth: current.sidebarWidth,
         isCollapsed: current.isCollapsed,
       }),
     }

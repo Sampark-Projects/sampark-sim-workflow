@@ -15,7 +15,7 @@ import {
   Tooltip,
   useScrollEdges,
 } from '@sim/emcn'
-import { MoreHorizontal, PanelLeft, Pin, Plus, Search, Task, Workflow } from '@sim/emcn/icons'
+import { MoreHorizontal, PanelLeft, Pin, Plus, Task, Workflow } from '@sim/emcn/icons'
 import { createLogger } from '@sim/logger'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { usePostHog } from 'posthog-js/react'
@@ -38,12 +38,10 @@ import type { SettingsSection } from '@/app/workspace/[workspaceId]/settings/nav
 import { createCommands } from '@/app/workspace/[workspaceId]/utils/commands-utils'
 import {
   ChatNavigationLink,
-  CollapsedChatFlyoutItem,
   CollapsedFolderItems,
   CollapsedSidebarMenu,
   CollapsedWorkflowFlyoutItem,
   HelpModal,
-  isNavItemActive,
   NavItemContextMenu,
   SearchModal,
   SettingsSidebar,
@@ -69,7 +67,6 @@ import { DeleteModal } from '@/app/workspace/[workspaceId]/w/components/sidebar/
 import {
   SIDEBAR_DIVIDER_PAD_ABOVE_CLASS,
   SIDEBAR_DIVIDER_PAD_BELOW_CLASS,
-  SIDEBAR_ITEM_GAP_CLASS,
   SIDEBAR_SECTION_GAP_CLASS,
 } from '@/app/workspace/[workspaceId]/w/components/sidebar/constants'
 import {
@@ -77,7 +74,6 @@ import {
   useFlyoutInlineRename,
   useFolderOperations,
   useHoverMenu,
-  useSidebarResize,
   useWorkflowOperations,
   useWorkspaceLogoUpload,
   useWorkspaceManagement,
@@ -494,8 +490,6 @@ export const Sidebar = memo(function Sidebar() {
       logger.error('Workspace logo upload error:', error)
     },
   })
-
-  const { handlePointerDown } = useSidebarResize()
 
   const {
     regularWorkflows,
@@ -1240,27 +1234,9 @@ export const Sidebar = memo(function Sidebar() {
                 inert={isCollapsed}
                 className={cn(
                   'flex h-[30px] items-center gap-[1px] overflow-hidden',
-                  isCollapsed
-                    ? 'w-0 opacity-0'
-                    : 'w-[65px] [[data-sim-desktop-title-bar=inset]_&]:w-[32px]'
+                  isCollapsed ? 'w-0 opacity-0' : 'w-[32px]'
                 )}
               >
-                <SidebarTooltip
-                  label='Search'
-                  enabled={!isCollapsed}
-                  side='bottom'
-                  shortcut={isMac ? '⌘K' : 'Ctrl+K'}
-                >
-                  <Chip
-                    leftIcon={Search}
-                    aria-label='Search'
-                    /* Called with no args — the store setter's first parameter is an
-                       options object, which a raw handler would fill with the event. */
-                    onClick={() => openSearchModal()}
-                    tabIndex={isCollapsed ? -1 : undefined}
-                    className={DRAG_EXEMPT_CLASS}
-                  />
-                </SidebarTooltip>
                 <SidebarTooltip
                   label='Collapse sidebar'
                   enabled={!isCollapsed}
@@ -1473,21 +1449,15 @@ export const Sidebar = memo(function Sidebar() {
           </div>
         </aside>
 
-        {/* Not on the peek card: the resize hook writes an inline `--sidebar-width` that
-            out-specifies the `[data-peek]` rule, stranding the card at a stale width. */}
-        {!isPeeking && (
+        {/* The expanded rail is fixed-width, so the edge exists only to expand a collapsed one. */}
+        {!isPeeking && isCollapsed && (
           <div
-            className={cn(
-              'absolute top-0 right-0 bottom-0 z-20 w-[8px] translate-x-1/2',
-              isCollapsed ? 'cursor-e-resize' : 'cursor-ew-resize'
-            )}
-            onPointerDown={isCollapsed ? undefined : handlePointerDown}
-            onClick={isCollapsed ? toggleCollapsed : undefined}
+            className='absolute top-0 right-0 bottom-0 z-20 w-[8px] translate-x-1/2 cursor-e-resize'
+            onClick={toggleCollapsed}
             onKeyDown={handleEdgeKeyDown}
-            role={isCollapsed ? 'button' : 'separator'}
+            role='button'
             tabIndex={0}
-            aria-orientation={isCollapsed ? undefined : 'vertical'}
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Resize sidebar'}
+            aria-label='Expand sidebar'
           />
         )}
       </div>

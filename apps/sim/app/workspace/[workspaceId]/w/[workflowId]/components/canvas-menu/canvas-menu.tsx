@@ -166,38 +166,12 @@ export function CanvasMenu({
         <PopoverItem
           className='group'
           onClick={() => {
-            onOpenSearchReplace()
-            onClose()
-          }}
-        >
-          <span>Search and replace</span>
-          <span className='ml-auto opacity-70 group-hover:opacity-100'>⌘F</span>
-        </PopoverItem>
-        <PopoverItem
-          className='group'
-          onClick={() => {
             onOpenLogs()
             onClose()
           }}
         >
           <span>Open Logs</span>
           <span className='ml-auto opacity-70 group-hover:opacity-100'>⌘L</span>
-        </PopoverItem>
-        <PopoverItem
-          onClick={() => {
-            onToggleVariables()
-            onClose()
-          }}
-        >
-          {isVariablesOpen ? 'Close Variables' : 'Open Variables'}
-        </PopoverItem>
-        <PopoverItem
-          onClick={() => {
-            onToggleChat()
-            onClose()
-          }}
-        >
-          {isChatOpen ? 'Close Chat' : 'Open Chat'}
         </PopoverItem>
       </PopoverContent>
     </Popover>
