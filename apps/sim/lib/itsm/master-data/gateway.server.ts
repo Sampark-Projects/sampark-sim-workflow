@@ -352,8 +352,8 @@ export async function listItsmUsers(customerId: string): Promise<ItsmUserOption[
 }
 
 /**
- * The approval levels (L1, L2, ...). ITSM gives every level the same id, so a
- * level is identified by its name, as the rule JSON has always carried it.
+ * The escalation levels (L1, L2, ...). ITSM gives every level the same id, so a
+ * level is identified by its name.
  */
 export async function listItsmLevels(customerId: string): Promise<ItsmMasterDataOption[]> {
   return (await independentList(customerId, 'LABEL')).map((level) => ({

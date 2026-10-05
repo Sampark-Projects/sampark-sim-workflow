@@ -98,7 +98,6 @@ import {
   getEdgeSelectionContextId,
   getNodeDataDimension,
   getNodeSelectionContextId,
-  getRunFromBlockDependencyState,
   getWorkflowLockToggleIds,
   isBlockProtected,
   isEdgeProtected,
@@ -148,11 +147,7 @@ import { useOAuthReturnForWorkflow } from '@/hooks/use-oauth-return'
 import { useOperationAccess } from '@/hooks/use-operation-access'
 import { useCanvasModeStore } from '@/stores/canvas-mode'
 import { useChatStore } from '@/stores/chat/store'
-import {
-  defaultWorkflowExecutionState,
-  useExecutionStore,
-  useLastExecutionSnapshot,
-} from '@/stores/execution'
+import { defaultWorkflowExecutionState, useExecutionStore } from '@/stores/execution'
 import { useSearchModalStore } from '@/stores/modals/search/store'
 import type { PendingConnect } from '@/stores/modals/search/types'
 import { usePanelEditorSearchStore, usePanelEditorStore, usePanelStore } from '@/stores/panel'
@@ -430,8 +425,7 @@ const WorkflowContent = React.memo(
       }))
     )
 
-    const { handleRunFromBlock, handleRunUntilBlock, handleRunWorkflow, handleCancelExecution } =
-      useWorkflowExecution()
+    const { handleRunWorkflow, handleCancelExecution } = useWorkflowExecution()
 
     const snapToGridSize = useSnapToGridSize()
     const snapToGrid = snapToGridSize > 0
@@ -994,7 +988,6 @@ const WorkflowContent = React.memo(
         }
       })
     )
-    const lastExecutionSnapshot = useLastExecutionSnapshot(workflowIdParam)
 
     const [dragStartParentId, setDragStartParentId] = useState<string | null>(null)
 
@@ -1344,11 +1337,6 @@ const WorkflowContent = React.memo(
       isPointInLoopNode,
     ])
 
-    const handleContextDuplicate = useCallback(() => {
-      copyBlocks(contextMenuBlocks.map((b) => b.id))
-      executePasteOperation('duplicate', DEFAULT_PASTE_OFFSET)
-    }, [contextMenuBlocks, copyBlocks, executePasteOperation])
-
     const handleContextCut = useCallback(() => {
       cutBlocksWithProtection(contextMenuBlocks.map((b) => b.id))
     }, [contextMenuBlocks, cutBlocksWithProtection])
@@ -1520,40 +1508,6 @@ const WorkflowContent = React.memo(
       usePanelEditorStore.getState().setCurrentBlockId(block.id)
       usePanelEditorStore.getState().triggerRename()
     }, [contextMenuBlocks])
-
-    const handleContextRunFromBlock = useCallback(() => {
-      if (contextMenuBlocks.length !== 1) return
-      const blockId = contextMenuBlocks[0].id
-      handleRunFromBlock(blockId, workflowIdParam)
-    }, [contextMenuBlocks, workflowIdParam, handleRunFromBlock])
-
-    const handleContextRunUntilBlock = useCallback(() => {
-      if (contextMenuBlocks.length !== 1) return
-      const blockId = contextMenuBlocks[0].id
-      handleRunUntilBlock(blockId, workflowIdParam)
-    }, [contextMenuBlocks, workflowIdParam, handleRunUntilBlock])
-
-    const runFromBlockState = useMemo(() => {
-      if (contextMenuBlocks.length !== 1) {
-        return { canRun: false, reason: undefined }
-      }
-      const block = contextMenuBlocks[0]
-      const { dependenciesSatisfied } = getRunFromBlockDependencyState(
-        block.id,
-        edges,
-        lastExecutionSnapshot
-      )
-      const isNoteBlock = block.type === 'note'
-      const isInsideSubflow =
-        block.parentId && (block.parentType === 'loop' || block.parentType === 'parallel')
-
-      if (isInsideSubflow) return { canRun: false, reason: 'Cannot run from inside subflow' }
-      if (!dependenciesSatisfied) return { canRun: false, reason: 'Run previous blocks first' }
-      if (isNoteBlock) return { canRun: false, reason: undefined }
-      if (isExecuting) return { canRun: false, reason: undefined }
-
-      return { canRun: true, reason: undefined }
-    }, [contextMenuBlocks, edges, lastExecutionSnapshot, isExecuting])
 
     const handleContextAddBlock = useCallback(() => {
       useSearchModalStore.getState().open()
@@ -5274,27 +5228,22 @@ const WorkflowContent = React.memo(
                       onCopy={handleContextCopy}
                       onCut={handleContextCut}
                       onPaste={handleContextPaste}
-                      onDuplicate={handleContextDuplicate}
                       onDelete={handleContextDelete}
                       onToggleEnabled={handleContextToggleEnabled}
                       onRemoveFromSubflow={handleContextRemoveFromSubflow}
                       onOpenEditor={handleContextOpenEditor}
                       onRename={handleContextRename}
                       onAddImage={handleContextAddImage}
-                      onRunFromBlock={handleContextRunFromBlock}
-                      onRunUntilBlock={handleContextRunUntilBlock}
                       hasClipboard={hasClipboard()}
                       showRemoveFromSubflow={contextMenuBlocks.some(
                         (b) =>
                           b.parentId && (b.parentType === 'loop' || b.parentType === 'parallel')
                       )}
-                      canRunFromBlock={runFromBlockState.canRun}
                       disableEdit={
                         !effectivePermissions.canEdit ||
                         contextMenuBlocks.some((b) => b.locked || b.isParentLocked)
                       }
                       userCanEdit={effectivePermissions.canEdit}
-                      isExecuting={isExecuting}
                       isPositionalTrigger={
                         contextMenuBlocks.length === 1 &&
                         isPositionalTriggerBlock(contextMenuBlocks[0], edges)

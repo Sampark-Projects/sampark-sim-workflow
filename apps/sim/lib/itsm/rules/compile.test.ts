@@ -7,6 +7,8 @@ import type {
   ItsmMasterDataOption,
   ItsmUserOption,
 } from '@/lib/itsm/master-data/types'
+import type { ItsmApproverField, ItsmApproverRow } from '@/lib/itsm/rules/approver-groups'
+import type { ItsmAssigneeRow } from '@/lib/itsm/rules/assignee-groups'
 import {
   collectItsmMasterDataNeeds,
   collectReferencedCategoryIds,
@@ -36,6 +38,7 @@ const lookup: ItsmMasterDataLookup = {
   bins: byId<ItsmBinOption>([
     { id: '2793', name: 'Service CRM', department: pathology },
     { id: '2796', name: 'IL-SL', department: pathology },
+    { id: '2800', name: 'IT Desk', department: it_ },
   ]),
   organizations: byId([{ id: 'O250682287', name: 'Sampark' }]),
   users: byId<ItsmUserOption>([
@@ -52,7 +55,10 @@ const lookup: ItsmMasterDataLookup = {
     { id: 'L2', name: 'L2' },
   ]),
   assignmentRules: byId([{ id: 'Round Robin', name: 'Round Robin' }]),
-  departmentBins: new Map([['279', new Set(['2793', '2796'])]]),
+  departmentBins: new Map([
+    ['279', new Set(['2793', '2796'])],
+    ['275', new Set(['2800'])],
+  ]),
   categorySubcategories: new Map([['OR000500021', new Set(['OR00050002131'])]]),
 }
 
@@ -72,6 +78,61 @@ function block(
     ),
     ...overrides,
   }
+}
+
+/** A value as the editor stores it; the label is what was shown when it was picked. */
+function value(id: string, label = id) {
+  return { id, label }
+}
+
+let rowCounter = 0
+
+function approverRow(field: ItsmApproverField | null, ...ids: string[]): ItsmApproverRow {
+  rowCounter += 1
+  return { id: `ar${rowCounter}`, field, values: ids.map((id) => value(id)), departments: [] }
+}
+
+/** A bins approver row narrowed to `departments`. */
+function binsRow(departments: string[], ...ids: string[]): ItsmApproverRow {
+  return { ...approverRow('bins', ...ids), departments: departments.map((id) => value(id)) }
+}
+
+/** The Approval subblock value: each argument is one OR group of AND-ed rows. */
+function approvers(...groups: ItsmApproverRow[][]) {
+  return { approvers: JSON.stringify(groups.map((rows, index) => ({ id: `ag${index}`, rows }))) }
+}
+
+function assigneeRow(fields: Partial<Omit<ItsmAssigneeRow, 'id'>>): ItsmAssigneeRow {
+  rowCounter += 1
+  return {
+    id: `sr${rowCounter}`,
+    assignTo: 'bin',
+    department: null,
+    bin: null,
+    assignmentRule: null,
+    userType: 'resolver',
+    user: null,
+    category: null,
+    subcategory: null,
+    ...fields,
+  }
+}
+
+/** The Assign subblock value: each argument is one OR group of AND-ed rows. */
+function assignees(...groups: ItsmAssigneeRow[][]) {
+  return { assignees: JSON.stringify(groups.map((rows, index) => ({ id: `sg${index}`, rows }))) }
+}
+
+function userRow(userType: ItsmAssigneeRow['userType'], id: string) {
+  return assigneeRow({ assignTo: 'user', userType, user: value(id) })
+}
+
+function categoryRow(category: string | null, subcategory: string | null = null) {
+  return assigneeRow({
+    assignTo: 'category',
+    category: category ? value(category) : null,
+    subcategory: subcategory ? value(subcategory) : null,
+  })
 }
 
 function graph(blocks: ItsmRuleGraphBlock[], edges: ItsmRuleGraphEdge[]): ItsmRuleGraph {
@@ -146,28 +207,32 @@ function validGraph(): ItsmRuleGraph {
     [
       block('start', 'itsm_start'),
       block('cond', 'itsm_condition', { branches: JSON.stringify(branches) }),
-      block('appr-1', 'itsm_approval', {
-        level: 'L1',
-        approverUsers: ['4010001'],
-        approvalMode: 'any',
-      }),
+      block('appr-1', 'itsm_approval', approvers([approverRow('users', '4010001')])),
       block('esc', 'itsm_escalation', {
+        level: 'L1',
         escalateAfter: '4',
         escalateUnit: 'hours',
         escalateToUsers: ['4010002'],
       }),
-      block('appr-2', 'itsm_approval', {
-        level: 'L2',
-        approverBins: ['2796'],
-        approverDepartments: ['275'],
-        approvalMode: 'all',
-      }),
-      block('assign', 'itsm_assign', {
-        assignTo: 'bin',
-        assignDepartment: '279',
-        assignBin: '2793',
-        assignmentRule: 'Round Robin',
-      }),
+      block(
+        'appr-2',
+        'itsm_approval',
+        approvers(
+          [binsRow(['279'], '2796'), approverRow('bins', '2800')],
+          [approverRow('users', '4010001', '4010002')]
+        )
+      ),
+      block(
+        'assign',
+        'itsm_assign',
+        assignees([
+          assigneeRow({
+            department: value('279'),
+            bin: value('2793'),
+            assignmentRule: value('Round Robin'),
+          }),
+        ])
+      ),
     ],
     [
       { source: 'start', sourceHandle: 'source', target: 'cond' },
@@ -181,7 +246,7 @@ function validGraph(): ItsmRuleGraph {
 }
 
 describe('compileItsmRule', () => {
-  it('compiles a multi-branch, multi-level rule into the ITSM JSON', () => {
+  it('compiles a multi-branch, multi-step rule into the ITSM JSON', () => {
     const { rule, errors, warnings } = compileItsmRule(validGraph(), lookup)
 
     expect(errors).toEqual([])
@@ -195,8 +260,7 @@ describe('compileItsmRule', () => {
       'appr-2',
     ])
 
-    const condition = rule?.nodes.find((node) => node.id === 'cond')
-    expect(condition).toEqual({
+    expect(rule?.nodes.find((node) => node.id === 'cond')).toEqual({
       id: 'cond',
       type: 'condition',
       label: 'cond',
@@ -247,35 +311,69 @@ describe('compileItsmRule', () => {
       elseNext: null,
     })
 
-    expect(rule?.nodes.find((node) => node.id === 'appr-1')).toMatchObject({
+    expect(rule?.nodes.find((node) => node.id === 'appr-1')).toEqual({
+      id: 'appr-1',
       type: 'approval',
-      level: { id: 'L1', name: 'L1' },
-      approvers: [{ kind: 'user', id: '4010001', name: 'User One' }],
-      mode: 'any',
+      label: 'appr-1',
+      approvers: {
+        any: [{ all: [{ kind: 'users', anyOf: [{ id: '4010001', name: 'User One' }] }] }],
+      },
       next: 'esc',
     })
     expect(rule?.nodes.find((node) => node.id === 'esc')).toEqual({
       id: 'esc',
       type: 'escalation',
       label: 'esc',
+      level: { id: 'L1', name: 'L1' },
       after: 4,
       unit: 'hours',
       users: [{ id: '4010002', name: 'User Two' }],
       next: 'appr-2',
     })
     expect(rule?.nodes.find((node) => node.id === 'appr-2')).toMatchObject({
-      approvers: [
-        { kind: 'department', id: '275', name: 'IT' },
-        { kind: 'bin', id: '2796', name: 'IL-SL', department: { id: '279', name: 'Pathology' } },
-      ],
-      mode: 'all',
+      approvers: {
+        any: [
+          {
+            all: [
+              {
+                kind: 'bins',
+                anyOf: [{ id: '2796', name: 'IL-SL', department: pathology }],
+              },
+              { kind: 'bins', anyOf: [{ id: '2800', name: 'IT Desk', department: it_ }] },
+            ],
+          },
+          {
+            all: [
+              {
+                kind: 'users',
+                anyOf: [
+                  { id: '4010001', name: 'User One' },
+                  { id: '4010002', name: 'User Two' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
     })
-    expect(rule?.nodes.find((node) => node.id === 'assign')).toMatchObject({
-      assignee: {
-        kind: 'bin',
-        id: '2793',
-        department: { id: '279', name: 'Pathology' },
-        assignmentRule: { id: 'Round Robin', name: 'Round Robin' },
+    expect(rule?.nodes.find((node) => node.id === 'assign')).toEqual({
+      id: 'assign',
+      type: 'assign',
+      label: 'assign',
+      assignees: {
+        any: [
+          {
+            all: [
+              {
+                kind: 'bin',
+                id: '2793',
+                name: 'Service CRM',
+                department: pathology,
+                assignmentRule: { id: 'Round Robin', name: 'Round Robin' },
+              },
+            ],
+          },
+        ],
       },
       next: null,
     })
@@ -298,9 +396,9 @@ describe('compileItsmRule', () => {
     expect(compileItsmRule(twoStarts, lookup).errors[0]?.message).toMatch(/exactly one start/)
   })
 
-  it('allows an escalation anywhere and checks its time', () => {
+  it('allows an escalation anywhere and checks its level and time', () => {
     const input = validGraph()
-    input.blocks.stray = block('stray', 'itsm_escalation', { escalateAfter: '2' })
+    input.blocks.stray = block('stray', 'itsm_escalation', { level: 'L2', escalateAfter: '2' })
     input.edges = input.edges.map((edge) =>
       edge.source === 'cond' && edge.target === 'assign' ? { ...edge, target: 'stray' } : edge
     )
@@ -309,32 +407,64 @@ describe('compileItsmRule', () => {
     expect(placed.errors).toEqual([])
     expect(placed.rule?.nodes.find((node) => node.id === 'stray')).toMatchObject({
       type: 'escalation',
+      level: { id: 'L2', name: 'L2' },
       after: 2,
       unit: 'hours',
       users: [],
       next: 'assign',
     })
 
-    input.blocks.esc = block('esc', 'itsm_escalation', { escalateAfter: '0' })
+    input.blocks.esc = block('esc', 'itsm_escalation', { level: 'L1', escalateAfter: '0' })
     const messages = compileItsmRule(input, lookup).errors.map((issue) => issue.message)
     expect(messages).toEqual(['Escalate after must be a number greater than 0.'])
+
+    input.blocks.esc = block('esc', 'itsm_escalation', { escalateAfter: '4' })
+    expect(compileItsmRule(input, lookup).errors.map((issue) => issue.message)).toEqual([
+      'Choose a level.',
+    ])
+    input.blocks.esc = block('esc', 'itsm_escalation', { level: 'L9', escalateAfter: '4' })
+    expect(compileItsmRule(input, lookup).errors.map((issue) => issue.message)).toEqual([
+      'Level "L9" no longer exists in ITSM.',
+    ])
   })
 
-  it('reports master data that no longer exists and incomplete blocks', () => {
+  it('reports master data that no longer exists and incomplete rows', () => {
     const input = validGraph()
-    input.blocks['appr-1'] = block('appr-1', 'itsm_approval', { level: 'L9', approverUsers: [] })
-    input.blocks.assign = block('assign', 'itsm_assign', {
-      assignTo: 'bin',
-      assignDepartment: '275',
-      assignBin: '2793',
-    })
+    input.blocks['appr-1'] = block('appr-1', 'itsm_approval', approvers([approverRow('users')]))
+    input.blocks['appr-2'] = block(
+      'appr-2',
+      'itsm_approval',
+      approvers(
+        [approverRow('users', '4010001')],
+        [approverRow('bins', '9999')],
+        [binsRow(['275'], '2796')],
+        [binsRow(['999', '275'], '2800')]
+      )
+    )
+    input.blocks.assign = block(
+      'assign',
+      'itsm_assign',
+      assignees([assigneeRow({ department: value('275'), bin: value('2793', 'Service CRM') })])
+    )
     const messages = compileItsmRule(input, lookup).errors.map((issue) => issue.message)
     expect(messages).toEqual(
       expect.arrayContaining([
-        'Level "L9" no longer exists in ITSM.',
-        'Add at least one approver.',
+        'Pick at least one value in Users.',
+        'Group 2: Bins: "9999" no longer exists in ITSM.',
+        'Group 3: Bin "IL-SL" does not belong to IT.',
+        'Group 4: Department "999" no longer exists in ITSM.',
         'Bin "Service CRM" does not belong to IT.',
       ])
+    )
+  })
+
+  it('requires an approver and an assignee in a block that was never filled in', () => {
+    const input = validGraph()
+    input.blocks['appr-1'] = block('appr-1', 'itsm_approval')
+    input.blocks.assign = block('assign', 'itsm_assign')
+    const messages = compileItsmRule(input, lookup).errors.map((issue) => issue.message)
+    expect(messages).toEqual(
+      expect.arrayContaining(['Choose Bins or Users for every row.', 'Choose a bin.'])
     )
   })
 
@@ -387,119 +517,199 @@ describe('compileItsmRule', () => {
     )
   })
 
-  it('warns about unconnected blocks and descending approval levels', () => {
+  it('warns about unconnected blocks', () => {
     const input = validGraph()
-    input.blocks['appr-2'] = block('appr-2', 'itsm_approval', {
-      level: 'L1',
-      approverUsers: ['4010002'],
-    })
     input.blocks.loose = block('loose', 'itsm_assign')
     const { rule, warnings } = compileItsmRule(input, lookup)
     expect(rule).not.toBeNull()
-    expect(warnings.map((issue) => issue.message)).toEqual(
-      expect.arrayContaining([
-        'Level L1 follows level L1. Approval levels usually go up.',
-        'Not connected to the start block, so it is not sent to ITSM.',
-      ])
-    )
+    expect(warnings.map((issue) => issue.message)).toEqual([
+      'Not connected to the start block, so it is not sent to ITSM.',
+    ])
   })
 })
 
-describe('compileItsmRule assignments to a user, category, or subcategory', () => {
-  function assignGraph(subBlocks: Record<string, unknown>) {
+describe('compileItsmRule assignments', () => {
+  function assignGraph(...groups: ItsmAssigneeRow[][]) {
     return graph(
-      [block('start', 'itsm_start'), block('assign', 'itsm_assign', subBlocks)],
+      [block('start', 'itsm_start'), block('assign', 'itsm_assign', assignees(...groups))],
       [{ source: 'start', sourceHandle: 'source', target: 'assign' }]
     )
   }
 
   it('assigns to a user of the chosen type', () => {
-    const resolver = compileItsmRule(
-      assignGraph({ assignTo: 'user', assignUserType: 'resolver', assignUser: '4010001' }),
-      lookup
-    )
+    const resolver = compileItsmRule(assignGraph([userRow('resolver', '4010001')]), lookup)
     expect(resolver.errors).toEqual([])
     expect(resolver.rule?.nodes[0]).toMatchObject({
-      assignee: { kind: 'user', id: '4010001', name: 'User One', userType: 'resolver' },
+      assignees: {
+        any: [{ all: [{ kind: 'user', id: '4010001', name: 'User One', userType: 'resolver' }] }],
+      },
     })
 
-    const creator = compileItsmRule(
-      assignGraph({ assignTo: 'user', assignUserType: 'creator', assignUser: '4010001' }),
-      lookup
-    )
+    const creator = compileItsmRule(assignGraph([userRow('creator', '4010001')]), lookup)
     expect(creator.errors.map((issue) => issue.message)).toEqual([
       'User One is not a creator in ITSM.',
     ])
 
-    const both = compileItsmRule(
-      assignGraph({ assignTo: 'user', assignUserType: 'both', assignUser: '4010001' }),
-      lookup
-    )
+    const both = compileItsmRule(assignGraph([userRow('both', '4010001')]), lookup)
     expect(both.errors).toEqual([])
   })
 
   it('assigns to a category when no subcategory is picked', () => {
-    const { rule, errors } = compileItsmRule(
-      assignGraph({ assignTo: 'category', assignCategory: 'OR000500024' }),
-      lookup
-    )
+    const { rule, errors } = compileItsmRule(assignGraph([categoryRow('OR000500024')]), lookup)
     expect(errors).toEqual([])
     expect(rule?.nodes[0]).toMatchObject({
-      assignee: { kind: 'category', id: 'OR000500024', name: 'CRM-Sales' },
+      assignees: { any: [{ all: [{ kind: 'category', id: 'OR000500024', name: 'CRM-Sales' }] }] },
     })
   })
 
   it('assigns to a subcategory of the chosen category', () => {
     const { rule, errors } = compileItsmRule(
-      assignGraph({
-        assignTo: 'category',
-        assignCategory: 'OR000500021',
-        assignSubcategory: 'OR00050002131',
-      }),
+      assignGraph([categoryRow('OR000500021', 'OR00050002131')]),
       lookup
     )
     expect(errors).toEqual([])
     expect(rule?.nodes[0]).toMatchObject({
-      assignee: {
-        kind: 'subcategory',
-        id: 'OR00050002131',
-        name: 'Page not loading',
-        category: { id: 'OR000500021', name: 'Customer Service' },
+      assignees: {
+        any: [
+          {
+            all: [
+              {
+                kind: 'subcategory',
+                id: 'OR00050002131',
+                name: 'Page not loading',
+                category: { id: 'OR000500021', name: 'Customer Service' },
+              },
+            ],
+          },
+        ],
       },
     })
   })
 
   it('rejects a subcategory outside the chosen category, and a missing category', () => {
     const mismatch = compileItsmRule(
-      assignGraph({
-        assignTo: 'category',
-        assignCategory: 'OR000500024',
-        assignSubcategory: 'OR00050002131',
-      }),
+      assignGraph([categoryRow('OR000500024', 'OR00050002131')]),
       lookup
     )
     expect(mismatch.errors.map((issue) => issue.message)).toEqual([
-      'Subcategory OR00050002131 is not in CRM-Sales.',
+      'Subcategory "OR00050002131" is not in CRM-Sales.',
     ])
-    const empty = compileItsmRule(assignGraph({ assignTo: 'category' }), lookup)
+    const empty = compileItsmRule(assignGraph([categoryRow(null)]), lookup)
     expect(empty.errors.map((issue) => issue.message)).toEqual(['Choose a category.'])
+  })
+
+  it('combines assignees with AND inside a group and OR across groups', () => {
+    const { rule, errors } = compileItsmRule(
+      assignGraph(
+        [assigneeRow({ bin: value('2796') }), userRow('both', '4010002')],
+        [categoryRow('OR000500024')]
+      ),
+      lookup
+    )
+    expect(errors).toEqual([])
+    expect(rule?.nodes[0]).toMatchObject({
+      assignees: {
+        any: [
+          {
+            all: [
+              { kind: 'bin', id: '2796', department: pathology, assignmentRule: null },
+              { kind: 'user', id: '4010002', userType: 'both' },
+            ],
+          },
+          { all: [{ kind: 'category', id: 'OR000500024' }] },
+        ],
+      },
+    })
   })
 
   it('loads subcategories only when a subcategory is picked', () => {
     expect(
-      collectReferencedCategoryIds(
-        assignGraph({
-          assignTo: 'category',
-          assignCategory: 'OR000500024',
-          assignSubcategory: 'OR00050002131',
-        })
-      )
+      collectReferencedCategoryIds(assignGraph([categoryRow('OR000500024', 'OR00050002131')]))
     ).toEqual(['OR000500024'])
+    expect(collectReferencedCategoryIds(assignGraph([categoryRow('OR000500024')]))).toEqual([])
+  })
+})
+
+describe('duplicate picks', () => {
+  function messagesFor(blockId: string, subBlocks: Record<string, unknown>, type: string) {
+    const input = validGraph()
+    input.blocks[blockId] = block(blockId, type, subBlocks)
+    return compileItsmRule(input, lookup).errors.map((issue) => issue.message)
+  }
+
+  it('rejects an approver picked in two rows of one group, and identical groups', () => {
     expect(
-      collectReferencedCategoryIds(
-        assignGraph({ assignTo: 'category', assignCategory: 'OR000500024' })
+      messagesFor(
+        'appr-1',
+        approvers(
+          [approverRow('users', '4010001'), approverRow('users', '4010001', '4010002')],
+          [approverRow('bins', '2796')],
+          [approverRow('bins', '2796')]
+        ),
+        'itsm_approval'
       )
-    ).toEqual([])
+    ).toEqual([
+      'Group 1: Users "4010001" is used in more than one row.',
+      'Group 3 is the same as Group 2.',
+    ])
+  })
+
+  it('rejects the same assignment twice in one group, and identical groups', () => {
+    expect(
+      messagesFor(
+        'assign',
+        assignees(
+          [userRow('resolver', '4010001'), userRow('both', '4010001')],
+          [categoryRow('OR000500024')],
+          [categoryRow('OR000500024')]
+        ),
+        'itsm_assign'
+      )
+    ).toEqual([
+      'Group 1: User 4010001 is used in more than one row.',
+      'Group 3 is the same as Group 2.',
+    ])
+  })
+
+  it('rejects a condition value in two rows, identical groups, and identical conditions', () => {
+    const row = (id: string, valueId: string) => ({
+      id,
+      field: 'severity' as const,
+      operator: 'in' as const,
+      values: [{ id: valueId, label: valueId }],
+    })
+    const duplicated: ItsmConditionBranch[] = [
+      {
+        id: 'cond-a',
+        kind: 'branch',
+        label: 'A',
+        groups: [
+          { id: 'g1', rows: [row('r1', 'SEV-0'), row('r2', 'SEV-0')] },
+          { id: 'g2', rows: [row('r3', 'SEV-1')] },
+          { id: 'g3', rows: [row('r4', 'SEV-1')] },
+        ],
+      },
+      {
+        id: 'cond-b',
+        kind: 'branch',
+        label: 'B',
+        groups: [{ id: 'g4', rows: [row('r5', 'SEV-1')] }],
+      },
+      {
+        id: 'cond-c',
+        kind: 'branch',
+        label: 'C',
+        groups: [{ id: 'g5', rows: [row('r6', 'SEV-1')] }],
+      },
+      { id: 'cond-else', kind: 'else', label: 'Else', groups: [] },
+    ]
+    expect(messagesFor('cond', { branches: JSON.stringify(duplicated) }, 'itsm_condition')).toEqual(
+      expect.arrayContaining([
+        'Condition "A": Group 1: Severity "SEV-0" is used in more than one row.',
+        'Condition "A": Group 3 is the same as Group 2.',
+        'Condition "C" is the same as condition "B".',
+      ])
+    )
   })
 })
 
@@ -526,21 +736,22 @@ describe('collectItsmMasterDataNeeds', () => {
     expect(compileItsmRule(input, trimmedLookup(input))).toEqual(compileItsmRule(input, lookup))
   })
 
-  it('loads the single bin, user, or category an Assign block picks', () => {
-    const assignments = [
-      {
-        assignTo: 'bin',
-        assignDepartment: '279',
-        assignBin: '2793',
-        assignmentRule: 'Round Robin',
-      },
-      { assignTo: 'bin', assignBin: '2793' },
-      { assignTo: 'user', assignUserType: 'resolver', assignUser: '4010002' },
-      { assignTo: 'category', assignCategory: 'OR000500021', assignSubcategory: 'OR00050002131' },
+  it('loads what each kind of Assign row picks', () => {
+    const rowSets = [
+      [
+        assigneeRow({
+          department: value('279'),
+          bin: value('2793'),
+          assignmentRule: value('Round Robin'),
+        }),
+      ],
+      [assigneeRow({ bin: value('2793') })],
+      [userRow('resolver', '4010002')],
+      [categoryRow('OR000500021', 'OR00050002131')],
     ]
-    for (const subBlocks of assignments) {
+    for (const rows of rowSets) {
       const input = graph(
-        [block('start', 'itsm_start'), block('assign', 'itsm_assign', subBlocks)],
+        [block('start', 'itsm_start'), block('assign', 'itsm_assign', assignees(rows))],
         [{ source: 'start', sourceHandle: 'source', target: 'assign' }]
       )
       const full = compileItsmRule(input, lookup)

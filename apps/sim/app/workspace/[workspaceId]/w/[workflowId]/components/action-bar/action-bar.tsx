@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react'
+import { memo } from 'react'
 import {
   Button,
   cn,
@@ -7,13 +7,10 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-  Duplicate,
-  PlayOutline,
   Tooltip,
   Trash,
-  toast,
 } from '@sim/emcn'
-import { Ban, Circle, Lock, LogOut, Palette, Square, Unlock } from '@sim/emcn/icons'
+import { Ban, Circle, Lock, LogOut, Palette, Unlock } from '@sim/emcn/icons'
 import {
   DEFAULT_NOTE_COLOR,
   isNoteColor,
@@ -23,14 +20,7 @@ import {
 import { useShallow } from 'zustand/react/shallow'
 import { isInputDefinitionTrigger } from '@/lib/workflows/triggers/input-definition-triggers'
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/providers/workspace-permissions-provider'
-import { useWorkflowExecution } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks'
-import {
-  getRunFromBlockDependencyState,
-  validateTriggerPaste,
-} from '@/app/workspace/[workspaceId]/w/[workflowId]/utils'
 import { useCollaborativeWorkflow } from '@/hooks/use-collaborative-workflow'
-import { useLastExecutionSnapshot } from '@/stores/execution'
-import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
 
 const DEFAULT_DUPLICATE_OFFSET = { x: 50, y: 50 }
@@ -115,49 +105,7 @@ const RUNNING_FILL_END_TAPER = '[clip-path:polygon(0_0,calc(100%_-_20px)_0,100%_
 
 const ICON_SIZE = 'size-[14px]'
 
-type ActionId = 'run' | 'enabled' | 'lock' | 'duplicate' | 'remove' | 'delete' | 'color'
-
-/**
- * Spinner that swaps to a stop glyph on hover.
- *
- * Carries the run's status announcement: the glyph itself is decorative, but
- * the block going from idle to running is only otherwise conveyed by the
- * button's `aria-label` flip, which a screen reader reads on focus rather than
- * when the state changes.
- */
-function RunningActionIcon() {
-  return (
-    <span
-      className='relative grid size-[14px] translate-x-[8px] translate-y-px place-items-center'
-      role='status'
-    >
-      <span className='sr-only'>Block running</span>
-      <span
-        aria-hidden='true'
-        className='col-start-1 row-start-1 opacity-100 transition-opacity duration-100 group-hover/run:opacity-0 group-focus-visible/run:opacity-0 motion-safe:animate-spin motion-reduce:transition-none'
-      >
-        <svg className='size-[14px]' viewBox='0 0 24 24' fill='none'>
-          <circle cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='2' opacity='0.25' />
-          <circle
-            cx='12'
-            cy='12'
-            r='10'
-            stroke='currentColor'
-            strokeWidth='2'
-            strokeLinecap='round'
-            strokeDasharray='18 45'
-          />
-        </svg>
-      </span>
-      <span
-        aria-hidden='true'
-        className='col-start-1 row-start-1 opacity-0 transition-opacity duration-100 group-hover/run:opacity-100 group-focus-visible/run:opacity-100 motion-reduce:transition-none'
-      >
-        <Square className='size-[11px] fill-current' strokeWidth={0} />
-      </span>
-    </span>
-  )
-}
+type ActionId = 'enabled' | 'lock' | 'remove' | 'delete' | 'color'
 
 /**
  * Props for the ActionBar component
@@ -200,38 +148,10 @@ export const ActionBar = memo(
     onNoteColorMenuOpen,
   }: ActionBarProps) {
     const {
-      collaborativeBatchAddBlocks,
       collaborativeBatchRemoveBlocks,
       collaborativeBatchToggleBlockEnabled,
       collaborativeBatchToggleLocked,
     } = useCollaborativeWorkflow()
-    const setPendingSelection = useWorkflowRegistry((state) => state.setPendingSelection)
-    const { handleCancelExecution, handleRunFromBlock } = useWorkflowExecution()
-    const handleDuplicateBlock = useCallback(() => {
-      const { copyBlocks, preparePasteData } = useWorkflowRegistry.getState()
-      const existingBlocks = useWorkflowStore.getState().blocks
-      copyBlocks([blockId])
-
-      const pasteData = preparePasteData(DEFAULT_DUPLICATE_OFFSET)
-      if (!pasteData) return
-
-      const blocks = Object.values(pasteData.blocks)
-      const validation = validateTriggerPaste(blocks, existingBlocks, 'duplicate')
-      if (!validation.isValid) {
-        toast.error(validation.message!)
-        return
-      }
-
-      setPendingSelection(blocks.map((b) => b.id))
-      collaborativeBatchAddBlocks(
-        blocks,
-        pasteData.edges,
-        pasteData.loops,
-        pasteData.parallels,
-        pasteData.subBlockValues
-      )
-    }, [blockId, collaborativeBatchAddBlocks, setPendingSelection])
-
     const { isEnabled, parentId, parentType, isLocked, isParentLocked, isParentDisabled } =
       useWorkflowStore(
         useShallow((state) => {
@@ -249,36 +169,14 @@ export const ActionBar = memo(
         })
       )
 
-    const activeWorkflowId = useWorkflowRegistry((state) => state.activeWorkflowId)
-    const snapshot = useLastExecutionSnapshot(activeWorkflowId)
     const userPermissions = useUserPermissionsContext()
-    const edges = useWorkflowStore((state) => state.edges)
 
     const isStartBlock = isInputDefinitionTrigger(blockType)
-    const isResponseBlock = blockType === 'response'
     const isNoteBlock = blockType === 'note'
     const isInsideSubflow = parentId && (parentType === 'loop' || parentType === 'parallel')
 
-    const { dependenciesSatisfied } = getRunFromBlockDependencyState(blockId, edges, snapshot)
-    const canRunFromBlock =
-      dependenciesSatisfied && !isNoteBlock && !isInsideSubflow && !isWorkflowRunning
-    /*
-     * One rule per action, shared by the button's `disabled` and its handler —
-     * previously the handler cancelled unconditionally while `disabled` only
-     * applied to Run, so a locked or read-only workflow still offered a Stop
-     * the server answers with 403. Cancelling is gated on `disabled` alone:
-     * that is `!canEditWorkflow`, which mirrors the route's `write` check,
-     * while a per-block lock has no bearing on stopping the whole run.
-     */
-    const canStopWorkflow = isWorkflowRunning && !disabled
-    const canRunBlock =
-      !isWorkflowRunning && canRunFromBlock && !disabled && !isLocked && !isParentLocked
     const isSwell = variant === 'swell'
-    const firstActionId: ActionId = isNoteBlock
-      ? 'color'
-      : !isInsideSubflow || isWorkflowRunning
-        ? 'run'
-        : 'enabled'
+    const firstActionId: ActionId = isNoteBlock ? 'color' : 'enabled'
     /* The slots the hatch runs across — they blank their icons so it reads
        uninterrupted. Not memoised: only `indexOf` is read, never the array's
        identity, so a memo here would allocate a deps array to save an
@@ -286,7 +184,6 @@ export const ActionBar = memo(
     const runningSweepActionIds: ActionId[] = [
       ...(!isNoteBlock ? (['enabled'] as const) : []),
       ...(userPermissions.canAdmin ? (['lock'] as const) : []),
-      ...(!isStartBlock && !isResponseBlock ? (['duplicate'] as const) : []),
       ...(!isStartBlock && isInsideSubflow ? (['remove'] as const) : []),
       'delete',
     ]
@@ -336,36 +233,18 @@ export const ActionBar = memo(
           ((actionId === 'enabled' && !isEnabled) || (actionId === 'lock' && isLocked)) && [
             'bg-[var(--text-secondary)] text-[var(--text-inverse)]',
           ],
-        actionId === 'run' &&
-          isRunning && [
-            'bg-[var(--text-secondary)]! text-[var(--text-inverse)]!',
-            'hover-hover:bg-[var(--white)]! hover-hover:text-[var(--surface-inverted)]!',
-            'dark:hover-hover:bg-[var(--surface-4)]! dark:hover-hover:text-[var(--text-primary)]!',
-            'focus-visible:bg-[var(--white)]! focus-visible:text-[var(--surface-inverted)]!',
-            'dark:focus-visible:bg-[var(--surface-4)]! dark:focus-visible:text-[var(--text-primary)]!',
-          ],
         isSwell &&
           actionId === firstActionId &&
           "w-[40px]! [clip-path:path('M23.75_0A8_8_0_0_0_17.6_2.88L3.41_19.9A2.5_2.5_0_0_0_5.34_24L36_24A4_4_0_0_0_40_20L40_4A4_4_0_0_0_36_0Z')] [&>svg]:translate-y-px",
         isSwell &&
           actionId === firstActionId &&
-          (actionId === 'run' || actionId === 'color'
-            ? '[&>svg]:translate-x-[8px]'
-            : '[&>svg]:translate-x-[6px]'),
+          (actionId === 'color' ? '[&>svg]:translate-x-[8px]' : '[&>svg]:translate-x-[6px]'),
         isSwell &&
           actionId === 'delete' &&
           "w-[40px]! [clip-path:path('M16.25_0A8_8_0_0_1_22.4_2.88L36.59_19.9A2.5_2.5_0_0_1_34.66_24L4_24A4_4_0_0_1_0_20L0_4A4_4_0_0_1_4_0Z')] [&_svg]:-translate-x-[6px] [&_svg]:translate-y-px",
-        /*
-         * A bystander card's actions dim mid-run because they are not available
-         * — but `run` is Stop while the workflow runs, and `canStopWorkflow` is
-         * true on every card, running or not. Dimming it styled a live control
-         * as a dead one: it recovered full opacity only once the pointer was
-         * already on it, so it read as unclickable right up until you clicked.
-         * It keeps the ordinary resting and hover chrome instead.
-         */
+        /* A bystander card's actions dim mid-run because they are not available. */
         isWorkflowRunning &&
-          !isRunning &&
-          actionId !== 'run' && [
+          !isRunning && [
             'bg-transparent! opacity-25!',
             'hover-hover:bg-transparent! dark:hover-hover:bg-transparent!',
           ],
@@ -381,11 +260,6 @@ export const ActionBar = memo(
         !isWorkflowRunning && actionId !== 'lock' && isLocked && 'opacity-35!'
       )
     }
-
-    const handleRunFromBlockClick = useCallback(() => {
-      if (!activeWorkflowId || !canRunFromBlock) return
-      handleRunFromBlock(blockId, activeWorkflowId)
-    }, [blockId, activeWorkflowId, canRunFromBlock, handleRunFromBlock])
 
     /**
      * Get appropriate tooltip message based on disabled state
@@ -457,52 +331,6 @@ export const ActionBar = memo(
               />
             </span>
           )}
-          {!isNoteBlock && (!isInsideSubflow || isWorkflowRunning) && (
-            <Tooltip.Root preferAbove>
-              <Tooltip.Trigger asChild>
-                <span className='inline-flex'>
-                  <Button
-                    variant='ghost'
-                    aria-label={isWorkflowRunning ? 'Stop workflow' : 'Run block'}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (canStopWorkflow) {
-                        handleCancelExecution()
-                        return
-                      }
-                      if (canRunBlock) handleRunFromBlockClick()
-                    }}
-                    className={cn(getActionButtonStyles('run'), isWorkflowRunning && 'group/run')}
-                    disabled={!canStopWorkflow && !canRunBlock}
-                  >
-                    {isWorkflowRunning ? (
-                      isRunning ? (
-                        <RunningActionIcon />
-                      ) : (
-                        <Square
-                          className='size-[11px] fill-current'
-                          aria-hidden='true'
-                          strokeWidth={0}
-                        />
-                      )
-                    ) : (
-                      <PlayOutline className={ICON_SIZE} />
-                    )}
-                  </Button>
-                </span>
-              </Tooltip.Trigger>
-              <Tooltip.Content side='top'>
-                {(() => {
-                  if (isWorkflowRunning) return getTooltipMessage('Stop')
-                  if (isLocked || isParentLocked) return 'Block is locked'
-                  if (disabled) return getTooltipMessage('Run')
-                  if (!dependenciesSatisfied) return 'Run previous blocks first'
-                  return 'Run'
-                })()}
-              </Tooltip.Content>
-            </Tooltip.Root>
-          )}
-
           {!isNoteBlock && (
             <Tooltip.Root preferAbove>
               <Tooltip.Trigger asChild>
@@ -630,33 +458,6 @@ export const ActionBar = memo(
                     : isLocked
                       ? 'Unlock'
                       : 'Lock'}
-                </Tooltip.Content>
-              )}
-            </Tooltip.Root>
-          )}
-
-          {!isStartBlock && !isResponseBlock && (
-            <Tooltip.Root preferAbove>
-              <Tooltip.Trigger asChild>
-                <span className='inline-flex'>
-                  <Button
-                    variant='ghost'
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (!disabled && !isLocked && !isParentLocked) {
-                        handleDuplicateBlock()
-                      }
-                    }}
-                    className={getActionButtonStyles('duplicate')}
-                    disabled={isWorkflowRunning || disabled || isLocked || isParentLocked}
-                  >
-                    <Duplicate className={ICON_SIZE} />
-                  </Button>
-                </span>
-              </Tooltip.Trigger>
-              {!isWorkflowRunning && (
-                <Tooltip.Content side='top'>
-                  {isLocked || isParentLocked ? 'Block is locked' : getTooltipMessage('Duplicate')}
                 </Tooltip.Content>
               )}
             </Tooltip.Root>

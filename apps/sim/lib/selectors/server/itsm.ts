@@ -136,9 +136,6 @@ export const itsmSelectorAttachments = {
     }
     return labelAllBins(await listItsmAllBins(customerId))
   }),
-  'itsm.allBins': flatItsmSelector(async (_args, customerId) =>
-    labelAllBins(await listItsmAllBins(customerId))
-  ),
   'itsm.users': flatItsmSelector(async (_args, customerId) =>
     toSelectorOptions(await listItsmUsers(customerId))
   ),

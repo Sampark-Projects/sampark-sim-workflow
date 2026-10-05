@@ -67,6 +67,7 @@ import {
   resolveDropdownLabel,
   resolveFilterFieldLabel,
   resolveFolderPathLabel,
+  resolveItsmGroupsLabel,
   resolveSandboxLabel,
   resolveSkillsLabel,
   resolveToolsLabel,
@@ -596,6 +597,11 @@ const SubBlockRow = memo(function SubBlockRow({
     [subBlock, rawValue]
   )
 
+  const itsmGroupsDisplayValue = useMemo(
+    () => resolveItsmGroupsLabel(subBlock, rawValue),
+    [subBlock, rawValue]
+  )
+
   const isPasswordField = subBlock?.password === true
   const maskedValue = isPasswordField && value && value !== '-' ? '•••' : null
   const isMonospaceField = Boolean(filterDisplayValue)
@@ -616,6 +622,7 @@ const SubBlockRow = memo(function SubBlockRow({
     mcpToolDisplayName ||
     tableDisplayName ||
     folderPathDisplayValue ||
+    itsmGroupsDisplayValue ||
     webhookUrlDisplayValue ||
     selectorDisplayName
   const displayValue = maskedValue || hydratedName || (isSelectorType && value ? '-' : value)

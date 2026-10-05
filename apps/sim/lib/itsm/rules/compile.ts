@@ -2,6 +2,7 @@ import type {
   ItsmRule,
   ItsmRuleApprovalNode,
   ItsmRuleApprover,
+  ItsmRuleAssignee,
   ItsmRuleAssignNode,
   ItsmRuleConditionNode,
   ItsmRuleConditionRow,
@@ -14,9 +15,22 @@ import {
   type ItsmBinOption,
   type ItsmMasterDataOption,
   type ItsmUserOption,
-  isItsmUserType,
   matchesItsmUserType,
 } from '@/lib/itsm/master-data/types'
+import {
+  ITSM_APPROVER_FIELDS,
+  ITSM_APPROVERS_SUBBLOCK_ID,
+  type ItsmApproverGroup,
+  parseItsmApproverGroups,
+} from '@/lib/itsm/rules/approver-groups'
+import {
+  ITSM_ASSIGNEES_SUBBLOCK_ID,
+  type ItsmAssigneeGroup,
+  type ItsmAssigneeRow,
+  itsmAssigneeKey,
+  parseItsmAssigneeGroups,
+  summarizeItsmAssigneeRow,
+} from '@/lib/itsm/rules/assignee-groups'
 import {
   ITSM_APPROVAL_BLOCK_TYPE,
   ITSM_ASSIGN_BLOCK_TYPE,
@@ -27,9 +41,12 @@ import {
   ITSM_CONDITION_BLOCK_TYPE,
   ITSM_CONDITION_FIELDS,
   ITSM_CONDITION_SUBBLOCK_ID,
+  type ItsmConditionBranch,
   type ItsmConditionField,
+  type ItsmConditionGroup,
   parseItsmConditionBranches,
 } from '@/lib/itsm/rules/condition-branches'
+import { findRepeatedItsmSets, itsmSetKey } from '@/lib/itsm/rules/group-values'
 import { EDGE } from '@/executor/constants'
 
 /** Workflows created before the ITSM start block begin at Sim's own start block. */
@@ -69,10 +86,9 @@ export interface ItsmMasterDataLookup {
   users: ReadonlyMap<string, ItsmUserOption>
   statuses: ReadonlyMap<string, ItsmMasterDataOption>
   severities: ReadonlyMap<string, ItsmMasterDataOption>
-  /** Ordered as ITSM lists them, which is escalation order. */
   levels: ReadonlyMap<string, ItsmMasterDataOption>
   assignmentRules: ReadonlyMap<string, ItsmMasterDataOption>
-  /** Bin ids per department, for the departments an Assign block names. */
+  /** Bin ids per department, for the departments an Approval or Assign bin row names. */
   departmentBins: ReadonlyMap<string, ReadonlySet<string>>
   /** Subcategory ids per category, for the categories the rule references. */
   categorySubcategories: ReadonlyMap<string, ReadonlySet<string>>
@@ -225,7 +241,6 @@ export function compileItsmRule(
   }
 
   const nodesById = new Map(nodes.map((node) => [node.id, node]))
-  warnOnLevelOrder(nodes, nodesById, graph, lookup, issues)
   if (hasCycle(startNodeId, nodesById)) {
     issues.error(null, 'The rule loops back on itself. Remove the connection that forms the loop.')
   }
@@ -302,8 +317,13 @@ function compileCondition(
   const matchBranches = branches.filter((branch) => branch.kind === 'branch')
   const elseBranch = branches.find((branch) => branch.kind === 'else')
 
+  const branchNames = matchBranches.map(
+    (branch, branchIndex) => branch.label || (branchIndex === 0 ? 'if' : `else if #${branchIndex}`)
+  )
+  reportConditionDuplicates(block, matchBranches, branchNames, issues)
+
   const compiled = matchBranches.map((branch, branchIndex) => {
-    const branchName = branch.label || (branchIndex === 0 ? 'if' : `else if #${branchIndex}`)
+    const branchName = branchNames[branchIndex]
     const errorsBefore = issues.errors.length
     const groups = branch.groups.flatMap((group) => {
       const rows: ItsmRuleConditionRow[] = []
@@ -374,54 +394,235 @@ function compileCondition(
   }
 }
 
+/** One picked value of a row, keyed so the same pick in two rows of a group compares equal. */
+interface PickedEntry {
+  key: string
+  label: string
+}
+
+/** The labels of picks that appear in more than one row of a group. */
+function picksInSeveralRows(rows: readonly (readonly PickedEntry[])[]): string[] {
+  const seen = new Map<string, { label: string; rows: number }>()
+  for (const row of rows) {
+    for (const entry of new Map(row.map((candidate) => [candidate.key, candidate])).values()) {
+      const current = seen.get(entry.key)
+      seen.set(entry.key, { label: entry.label, rows: (current?.rows ?? 0) + 1 })
+    }
+  }
+  return [...seen.values()].filter((entry) => entry.rows > 1).map((entry) => entry.label)
+}
+
+/** A key for a whole group, or null when none of its rows is filled in yet. */
+function groupKey(rowKeys: readonly (string | null)[]): string | null {
+  const filled = rowKeys.filter((key): key is string => key !== null)
+  return filled.length > 0 ? itsmSetKey(filled) : null
+}
+
+function conditionGroupKey(group: ItsmConditionGroup): string | null {
+  return groupKey(
+    group.rows.map((row) =>
+      row.field && row.values.length > 0
+        ? `${row.field}:${row.operator}:${itsmSetKey(row.values.map((value) => value.id))}`
+        : null
+    )
+  )
+}
+
+/**
+ * Rejects a value picked in two rows of one group, two identical groups in one
+ * condition, and two identical conditions in one block.
+ */
+function reportConditionDuplicates(
+  block: ItsmRuleGraphBlock,
+  branches: readonly ItsmConditionBranch[],
+  names: readonly string[],
+  issues: IssueCollector
+) {
+  branches.forEach((branch, branchIndex) => {
+    const name = names[branchIndex]
+    branch.groups.forEach((group, groupIndex) => {
+      const at = groupPrefix(groupIndex, branch.groups.length)
+      const repeated = picksInSeveralRows(
+        group.rows.map((row) => {
+          const field = row.field
+          if (!field) return []
+          const label = ITSM_CONDITION_FIELDS[field].label
+          return row.values.map((value) => ({
+            key: `${field}:${value.id}`,
+            label: `${label} "${value.label}"`,
+          }))
+        })
+      )
+      for (const label of repeated) {
+        issues.error(block, `Condition "${name}": ${at}${label} is used in more than one row.`)
+      }
+    })
+    for (const { index, firstIndex } of findRepeatedItsmSets(
+      branch.groups.map(conditionGroupKey)
+    )) {
+      issues.error(
+        block,
+        `Condition "${name}": Group ${index + 1} is the same as Group ${firstIndex + 1}.`
+      )
+    }
+  })
+  const branchKeys = branches.map((branch) => groupKey(branch.groups.map(conditionGroupKey)))
+  for (const { index, firstIndex } of findRepeatedItsmSets(branchKeys)) {
+    issues.error(
+      block,
+      `Condition "${names[index]}" is the same as condition "${names[firstIndex]}".`
+    )
+  }
+}
+
+/** Rejects a value picked in two rows of one group, and two identical groups. */
+function reportApproverDuplicates(
+  block: ItsmRuleGraphBlock,
+  groups: readonly ItsmApproverGroup[],
+  issues: IssueCollector
+) {
+  groups.forEach((group, groupIndex) => {
+    const at = groupPrefix(groupIndex, groups.length)
+    const repeated = picksInSeveralRows(
+      group.rows.map((row) => {
+        const field = row.field
+        if (!field) return []
+        return row.values.map((value) => ({
+          key: `${field}:${value.id}`,
+          label: `${ITSM_APPROVER_FIELDS[field].label} "${value.label}"`,
+        }))
+      })
+    )
+    for (const label of repeated) {
+      issues.error(block, `${at}${label} is used in more than one row.`)
+    }
+  })
+  const keys = groups.map((group) =>
+    groupKey(
+      group.rows.map((row) =>
+        row.field && row.values.length > 0
+          ? `${row.field}:${itsmSetKey(row.values.map((value) => value.id))}`
+          : null
+      )
+    )
+  )
+  for (const { index, firstIndex } of findRepeatedItsmSets(keys)) {
+    issues.error(block, `Group ${index + 1} is the same as Group ${firstIndex + 1}.`)
+  }
+}
+
+/** Rejects the same assignment twice in one group, and two identical groups. */
+function reportAssigneeDuplicates(
+  block: ItsmRuleGraphBlock,
+  groups: readonly ItsmAssigneeGroup[],
+  issues: IssueCollector
+) {
+  groups.forEach((group, groupIndex) => {
+    const at = groupPrefix(groupIndex, groups.length)
+    const repeated = picksInSeveralRows(
+      group.rows.map((row) => {
+        const key = itsmAssigneeKey(row)
+        return key
+          ? [{ key, label: summarizeItsmAssigneeRow({ ...row, assignmentRule: null }) }]
+          : []
+      })
+    )
+    for (const label of repeated) {
+      issues.error(block, `${at}${label} is used in more than one row.`)
+    }
+  })
+  const keys = groups.map((group) =>
+    groupKey(
+      group.rows.map((row) => {
+        const key = itsmAssigneeKey(row)
+        return key
+          ? `${key}:${row.department?.id ?? ''}:${row.assignmentRule?.id ?? ''}:${row.userType}`
+          : null
+      })
+    )
+  )
+  for (const { index, firstIndex } of findRepeatedItsmSets(keys)) {
+    issues.error(block, `Group ${index + 1} is the same as Group ${firstIndex + 1}.`)
+  }
+}
+
+/** Names the group an issue is in, when the block has more than one. */
+function groupPrefix(groupIndex: number, groupCount: number): string {
+  return groupCount > 1 ? `Group ${groupIndex + 1}: ` : ''
+}
+
+/** Resolves picked values against ITSM, reporting each one ITSM no longer has. */
+function resolvePicked<T>(
+  values: readonly { id: string; label: string }[],
+  options: ReadonlyMap<string, T>,
+  onMissing: (label: string) => void
+): T[] {
+  return values.flatMap((value) => {
+    const option = options.get(value.id)
+    if (option) return [option]
+    onMissing(value.label)
+    return []
+  })
+}
+
 function compileApproval(
   block: ItsmRuleGraphBlock,
   { lookup, issues, nextFrom }: CompileContext
 ): ItsmRuleApprovalNode {
-  const values = (id: string) => block.subBlocks[id]?.value
+  const groups = parseItsmApproverGroups(block.subBlocks[ITSM_APPROVERS_SUBBLOCK_ID]?.value)
+  const errorsBefore = issues.errors.length
+  reportApproverDuplicates(block, groups, issues)
 
-  const levelId = readId(values('level'))
-  const level = levelId ? lookup.levels.get(levelId) : undefined
-  if (!levelId) issues.error(block, 'Choose an approval level.')
-  else if (!level) issues.error(block, `Level "${levelId}" no longer exists in ITSM.`)
-
-  const approvers: ItsmRuleApprover[] = []
-  for (const id of readIdList(values('approverUsers'))) {
-    const user = lookup.users.get(id)
-    if (user) approvers.push({ kind: 'user', id: user.id, name: user.name })
-    else issues.error(block, `Approver user ${id} is no longer an active ITSM user.`)
-  }
-  for (const id of readIdList(values('approverDepartments'))) {
-    const department = lookup.departments.get(id)
-    if (department) approvers.push({ kind: 'department', id: department.id, name: department.name })
-    else issues.error(block, `Approver department ${id} no longer exists in ITSM.`)
-  }
-  for (const id of readIdList(values('approverBins'))) {
-    const bin = lookup.bins.get(id)
-    if (bin) {
-      approvers.push({
-        kind: 'bin',
-        id: bin.id,
-        name: bin.name,
-        department: bin.department ? toRef(bin.department) : null,
+  const any = groups.flatMap((group, groupIndex) => {
+    const at = groupPrefix(groupIndex, groups.length)
+    const all = group.rows.flatMap((row): ItsmRuleApprover[] => {
+      if (!row.field) {
+        issues.error(block, `${at}Choose Bins or Users for every row.`)
+        return []
+      }
+      const label = ITSM_APPROVER_FIELDS[row.field].label
+      if (row.values.length === 0) {
+        issues.error(block, `${at}Pick at least one value in ${label}.`)
+        return []
+      }
+      const missing = (name: string) =>
+        issues.error(block, `${at}${label}: "${name}" no longer exists in ITSM.`)
+      if (row.field === 'users') {
+        const users = resolvePicked(row.values, lookup.users, missing)
+        return users.length > 0 ? [{ kind: 'users', anyOf: users.map(toRef) }] : []
+      }
+      const departments = resolvePicked(row.departments, lookup.departments, (name) =>
+        issues.error(block, `${at}Department "${name}" no longer exists in ITSM.`)
+      )
+      if (departments.length < row.departments.length) return []
+      const anyOf = resolvePicked(row.values, lookup.bins, missing).flatMap((bin) => {
+        if (departments.length === 0) {
+          return [{ ...toRef(bin), department: bin.department ? toRef(bin.department) : null }]
+        }
+        const department = departments.find((candidate) =>
+          lookup.departmentBins.get(candidate.id)?.has(bin.id)
+        )
+        if (department) return [{ ...toRef(bin), department: toRef(department) }]
+        issues.error(
+          block,
+          `${at}Bin "${bin.name}" does not belong to ${departments.map((d) => d.name).join(' or ')}.`
+        )
+        return []
       })
-    } else {
-      issues.error(block, `Approver bin ${id} no longer exists in ITSM.`)
-    }
+      return anyOf.length > 0 ? [{ kind: 'bins', anyOf }] : []
+    })
+    return all.length > 0 ? [{ all }] : []
+  })
+  if (any.length === 0 && issues.errors.length === errorsBefore) {
+    issues.error(block, 'Add at least one approver.')
   }
-  if (approvers.length === 0) issues.error(block, 'Add at least one approver.')
-
-  const mode = values('approvalMode') === 'all' ? 'all' : 'any'
-  const next = nextFrom(block, SOURCE_HANDLE, 'The approved output')
 
   return {
     id: block.id,
     type: 'approval',
     label: block.name,
-    level: level ? toRef(level) : { id: levelId ?? '', name: '' },
-    approvers,
-    mode,
-    next,
+    approvers: { any },
+    next: nextFrom(block, SOURCE_HANDLE, 'The approved output'),
   }
 }
 
@@ -432,6 +633,7 @@ function compileEscalation(
   nextFrom: NextFrom
 ): ItsmRuleEscalationNode {
   const timing = readEscalationTiming(block, issues)
+  const level = readEscalationLevel(block, lookup, issues)
   const users = readIdList(block.subBlocks.escalateToUsers?.value).flatMap((id) => {
     const user = lookup.users.get(id)
     if (user) return [{ id: user.id, name: user.name }]
@@ -442,11 +644,30 @@ function compileEscalation(
     id: block.id,
     type: 'escalation',
     label: block.name,
+    level: level ?? { id: '', name: '' },
     after: timing?.after ?? 0,
     unit: timing?.unit ?? 'hours',
     users,
     next: nextFrom(block, SOURCE_HANDLE, 'The escalation output'),
   }
+}
+
+function readEscalationLevel(
+  block: ItsmRuleGraphBlock,
+  lookup: ItsmMasterDataLookup,
+  issues: IssueCollector
+): ItsmRuleRef | null {
+  const id = readId(block.subBlocks.level?.value)
+  if (!id) {
+    issues.error(block, 'Choose a level.')
+    return null
+  }
+  const level = lookup.levels.get(id)
+  if (!level) {
+    issues.error(block, `Level "${id}" no longer exists in ITSM.`)
+    return null
+  }
+  return toRef(level)
 }
 
 function readEscalationTiming(
@@ -479,116 +700,105 @@ function compileAssign(
   issues: IssueCollector,
   nextFrom: NextFrom
 ): ItsmRuleAssignNode {
-  const values = (id: string) => block.subBlocks[id]?.value
-  const next = nextFrom(block, SOURCE_HANDLE, 'The output')
-  const base = { id: block.id, type: 'assign' as const, label: block.name, next }
+  const groups = parseItsmAssigneeGroups(block.subBlocks[ITSM_ASSIGNEES_SUBBLOCK_ID]?.value)
+  const errorsBefore = issues.errors.length
+  reportAssigneeDuplicates(block, groups, issues)
 
-  const assignTo = values('assignTo')
-  /** `subcategory` was once its own choice; it now refines a category assignment. */
-  if (assignTo === 'category' || assignTo === 'subcategory') {
-    const categoryId = readId(values('assignCategory'))
-    const category = categoryId ? lookup.categories.get(categoryId) : undefined
-    if (!categoryId) issues.error(block, 'Choose a category.')
-    else if (!category) issues.error(block, `Category ${categoryId} no longer exists in ITSM.`)
-    const categoryRef = { id: category?.id ?? categoryId ?? '', name: category?.name ?? '' }
-    const subcategoryId = readId(values('assignSubcategory'))
-    if (!subcategoryId) {
-      return { ...base, assignee: { kind: 'category', ...categoryRef } }
-    }
-
-    const subcategory = lookup.subcategories.get(subcategoryId)
-    if (
-      !subcategory ||
-      (category && !lookup.categorySubcategories.get(category.id)?.has(subcategory.id))
-    ) {
-      issues.error(
-        block,
-        `Subcategory ${subcategoryId} is not in ${category?.name ?? 'this category'}.`
+  const any = groups.flatMap((group, groupIndex) => {
+    const at = groupPrefix(groupIndex, groups.length)
+    const all = group.rows.flatMap((row) => {
+      const assignee = compileAssignee(row, lookup, (message) =>
+        issues.error(block, `${at}${message}`)
       )
-    }
-    return {
-      ...base,
-      assignee: {
-        kind: 'subcategory',
-        id: subcategory?.id ?? subcategoryId ?? '',
-        name: subcategory?.name ?? '',
-        category: categoryRef,
-      },
-    }
+      return assignee ? [assignee] : []
+    })
+    return all.length > 0 ? [{ all }] : []
+  })
+  if (any.length === 0 && issues.errors.length === errorsBefore) {
+    issues.error(block, 'Add at least one assignee.')
   }
-
-  if (assignTo === 'user') {
-    const rawUserType = values('assignUserType')
-    const userType = isItsmUserType(rawUserType) ? rawUserType : 'resolver'
-    const userId = readId(values('assignUser'))
-    const user = userId ? lookup.users.get(userId) : undefined
-    if (!userId) issues.error(block, 'Choose the user to assign to.')
-    else if (!user) issues.error(block, `User ${userId} is no longer an active ITSM user.`)
-    else if (!matchesItsmUserType(user.roleType, userType)) {
-      issues.error(block, `${user.name} is not a ${userType} in ITSM.`)
-    }
-    return {
-      ...base,
-      assignee: { kind: 'user', id: user?.id ?? userId ?? '', name: user?.name ?? '', userType },
-    }
-  }
-
-  const departmentId = readId(values('assignDepartment'))
-  const binId = readId(values('assignBin'))
-  const ruleId = readId(values('assignmentRule'))
-  const department = departmentId ? lookup.departments.get(departmentId) : undefined
-  const bin = binId ? lookup.bins.get(binId) : undefined
-  const assignmentRule = ruleId ? lookup.assignmentRules.get(ruleId) : undefined
-
-  if (departmentId && !department) {
-    issues.error(block, `Department ${departmentId} no longer exists in ITSM.`)
-  }
-  if (!binId) issues.error(block, 'Choose a bin.')
-  else if (!bin) issues.error(block, `Bin ${binId} no longer exists in ITSM.`)
-  else if (department && !lookup.departmentBins.get(department.id)?.has(bin.id)) {
-    issues.error(block, `Bin "${bin.name}" does not belong to ${department.name}.`)
-  }
-  if (ruleId && !assignmentRule)
-    issues.error(block, `Rule type "${ruleId}" no longer exists in ITSM.`)
 
   return {
-    ...base,
-    assignee: {
-      kind: 'bin',
-      id: bin?.id ?? binId ?? '',
-      name: bin?.name ?? '',
-      department: department ? toRef(department) : bin?.department ? toRef(bin.department) : null,
-      assignmentRule: assignmentRule ? toRef(assignmentRule) : null,
-    },
+    id: block.id,
+    type: 'assign',
+    label: block.name,
+    assignees: { any },
+    next: nextFrom(block, SOURCE_HANDLE, 'The output'),
   }
 }
 
-/** Approval chains normally climb levels (L1 then L2); a descent is likely a mistake. */
-function warnOnLevelOrder(
-  nodes: ItsmRuleNode[],
-  nodesById: ReadonlyMap<string, ItsmRuleNode>,
-  graph: ItsmRuleGraph,
+/** One assignment target, or null when a required pick is missing or gone from ITSM. */
+function compileAssignee(
+  row: ItsmAssigneeRow,
   lookup: ItsmMasterDataLookup,
-  issues: IssueCollector
-) {
-  const rank = new Map([...lookup.levels.keys()].map((id, index) => [id, index]))
-  for (const node of nodes) {
-    if (node.type !== 'approval' || !node.next) continue
-    let next = nodesById.get(node.next)
-    const seen = new Set<string>()
-    while (next?.type === 'escalation' && next.next && !seen.has(next.id)) {
-      seen.add(next.id)
-      next = nodesById.get(next.next)
+  error: (message: string) => void
+): ItsmRuleAssignee | null {
+  if (row.assignTo === 'category') {
+    if (!row.category) {
+      error('Choose a category.')
+      return null
     }
-    if (next?.type !== 'approval') continue
-    const current = rank.get(String(node.level.id))
-    const following = rank.get(String(next.level.id))
-    if (current !== undefined && following !== undefined && following <= current) {
-      issues.warn(
-        graph.blocks[next.id] ?? null,
-        `Level ${next.level.name} follows level ${node.level.name}. Approval levels usually go up.`
-      )
+    const category = lookup.categories.get(row.category.id)
+    if (!category) {
+      error(`Category "${row.category.label}" no longer exists in ITSM.`)
+      return null
     }
+    if (!row.subcategory) return { kind: 'category', ...toRef(category) }
+    const subcategory = lookup.subcategories.get(row.subcategory.id)
+    if (!subcategory || !lookup.categorySubcategories.get(category.id)?.has(subcategory.id)) {
+      error(`Subcategory "${row.subcategory.label}" is not in ${category.name}.`)
+      return null
+    }
+    return { kind: 'subcategory', ...toRef(subcategory), category: toRef(category) }
+  }
+
+  if (row.assignTo === 'user') {
+    if (!row.user) {
+      error('Choose the user to assign to.')
+      return null
+    }
+    const user = lookup.users.get(row.user.id)
+    if (!user) {
+      error(`User "${row.user.label}" is no longer an active ITSM user.`)
+      return null
+    }
+    if (!matchesItsmUserType(user.roleType, row.userType)) {
+      error(`${user.name} is not a ${row.userType} in ITSM.`)
+      return null
+    }
+    return { kind: 'user', ...toRef(user), userType: row.userType }
+  }
+
+  if (!row.bin) {
+    error('Choose a bin.')
+    return null
+  }
+  const bin = lookup.bins.get(row.bin.id)
+  if (!bin) {
+    error(`Bin "${row.bin.label}" no longer exists in ITSM.`)
+    return null
+  }
+  const department = row.department ? lookup.departments.get(row.department.id) : undefined
+  if (row.department && !department) {
+    error(`Department "${row.department.label}" no longer exists in ITSM.`)
+    return null
+  }
+  if (department && !lookup.departmentBins.get(department.id)?.has(bin.id)) {
+    error(`Bin "${bin.name}" does not belong to ${department.name}.`)
+    return null
+  }
+  const assignmentRule = row.assignmentRule
+    ? lookup.assignmentRules.get(row.assignmentRule.id)
+    : undefined
+  if (row.assignmentRule && !assignmentRule) {
+    error(`Rule type "${row.assignmentRule.label}" no longer exists in ITSM.`)
+    return null
+  }
+  return {
+    kind: 'bin',
+    ...toRef(bin),
+    department: department ? toRef(department) : bin.department ? toRef(bin.department) : null,
+    assignmentRule: assignmentRule ? toRef(assignmentRule) : null,
   }
 }
 
@@ -613,7 +823,7 @@ export interface ItsmMasterDataNeeds {
   /** Categories whose subcategories are needed. */
   categoryIds: string[]
   /** Departments whose bins are needed. */
-  assignDepartmentIds: string[]
+  binDepartmentIds: string[]
 }
 
 /**
@@ -623,10 +833,6 @@ export interface ItsmMasterDataNeeds {
  */
 export function collectItsmMasterDataNeeds(graph: ItsmRuleGraph): ItsmMasterDataNeeds {
   const lists = new Set<ItsmMasterDataListName>()
-  /** For a single-choice field. */
-  const needWhen = (name: ItsmMasterDataListName, value: unknown) => {
-    if (readId(value) !== null) lists.add(name)
-  }
   /** For a multi-select field. */
   const needWhenAny = (name: ItsmMasterDataListName, value: unknown) => {
     if (readIdList(value).length > 0) lists.add(name)
@@ -647,44 +853,63 @@ export function collectItsmMasterDataNeeds(graph: ItsmRuleGraph): ItsmMasterData
         }
         break
       case ITSM_APPROVAL_BLOCK_TYPE:
-        lists.add('levels')
-        needWhenAny('users', values('approverUsers'))
-        needWhenAny('departments', values('approverDepartments'))
-        needWhenAny('bins', values('approverBins'))
-        break
-      case ITSM_ESCALATION_BLOCK_TYPE:
-        needWhenAny('users', values('escalateToUsers'))
-        break
-      case ITSM_ASSIGN_BLOCK_TYPE: {
-        const assignTo = values('assignTo')
-        if (assignTo === 'category' || assignTo === 'subcategory') {
-          lists.add('categories')
-          needWhen('subcategories', values('assignSubcategory'))
-        } else if (assignTo === 'user') {
-          lists.add('users')
-        } else {
-          needWhen('departments', values('assignDepartment'))
-          needWhen('bins', values('assignBin'))
-          needWhen('assignmentRules', values('assignmentRule'))
+        for (const group of parseItsmApproverGroups(values(ITSM_APPROVERS_SUBBLOCK_ID))) {
+          for (const row of group.rows) {
+            if (row.field && row.values.length > 0) lists.add(row.field)
+            if (row.departments.length > 0) lists.add('departments')
+          }
         }
         break
-      }
+      case ITSM_ESCALATION_BLOCK_TYPE:
+        if (readId(values('level'))) lists.add('levels')
+        needWhenAny('users', values('escalateToUsers'))
+        break
+      case ITSM_ASSIGN_BLOCK_TYPE:
+        for (const row of assigneeRowsOf(block)) {
+          if (row.assignTo === 'category') {
+            if (row.category) lists.add('categories')
+            if (row.subcategory) lists.add('subcategories')
+          } else if (row.assignTo === 'user') {
+            if (row.user) lists.add('users')
+          } else {
+            if (row.department) lists.add('departments')
+            if (row.bin) lists.add('bins')
+            if (row.assignmentRule) lists.add('assignmentRules')
+          }
+        }
+        break
     }
   }
   return {
     lists,
     categoryIds: collectReferencedCategoryIds(graph),
-    assignDepartmentIds: collectAssignDepartmentIds(graph),
+    binDepartmentIds: collectBinDepartmentIds(graph),
   }
 }
 
-/** Every department an Assign block names, so its bins can be checked. */
-export function collectAssignDepartmentIds(graph: ItsmRuleGraph): string[] {
+function assigneeRowsOf(block: ItsmRuleGraphBlock): ItsmAssigneeRow[] {
+  return parseItsmAssigneeGroups(block.subBlocks[ITSM_ASSIGNEES_SUBBLOCK_ID]?.value).flatMap(
+    (group: ItsmAssigneeGroup) => group.rows
+  )
+}
+
+/** Every department an Approval or Assign bin row names, so its bins can be checked. */
+export function collectBinDepartmentIds(graph: ItsmRuleGraph): string[] {
   const ids = new Set<string>()
   for (const block of Object.values(graph.blocks)) {
+    if (block.type === ITSM_APPROVAL_BLOCK_TYPE) {
+      for (const group of parseItsmApproverGroups(
+        block.subBlocks[ITSM_APPROVERS_SUBBLOCK_ID]?.value
+      )) {
+        for (const row of group.rows) {
+          for (const department of row.departments) ids.add(department.id)
+        }
+      }
+    }
     if (block.type !== ITSM_ASSIGN_BLOCK_TYPE) continue
-    const id = readId(block.subBlocks.assignDepartment?.value)
-    if (id) ids.add(id)
+    for (const row of assigneeRowsOf(block)) {
+      if (row.assignTo === 'bin' && row.department) ids.add(row.department.id)
+    }
   }
   return [...ids]
 }
@@ -697,8 +922,11 @@ export function collectReferencedCategoryIds(graph: ItsmRuleGraph): string[] {
   const ids = new Set<string>()
   for (const block of Object.values(graph.blocks)) {
     if (block.type === ITSM_ASSIGN_BLOCK_TYPE) {
-      const id = readId(block.subBlocks.assignCategory?.value)
-      if (id && readId(block.subBlocks.assignSubcategory?.value)) ids.add(id)
+      for (const row of assigneeRowsOf(block)) {
+        if (row.assignTo === 'category' && row.category && row.subcategory) {
+          ids.add(row.category.id)
+        }
+      }
       continue
     }
     if (block.type !== ITSM_CONDITION_BLOCK_TYPE) continue

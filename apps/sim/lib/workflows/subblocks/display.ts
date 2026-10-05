@@ -10,6 +10,16 @@ import { isRecordLike } from '@sim/utils/object'
 import { truncate } from '@sim/utils/string'
 import { parseFolderPath } from '@/lib/folders/paths'
 import { readFolderPaths } from '@/lib/folders/selection'
+import {
+  ITSM_APPROVERS_SUBBLOCK_TYPE,
+  parseItsmApproverGroups,
+  summarizeItsmApproverGroups,
+} from '@/lib/itsm/rules/approver-groups'
+import {
+  ITSM_ASSIGNEES_SUBBLOCK_TYPE,
+  parseItsmAssigneeGroups,
+  summarizeItsmAssigneeGroups,
+} from '@/lib/itsm/rules/assignee-groups'
 import { MCP_SERVER_ADVANCED_TOOL_TYPE } from '@/lib/mcp/shared'
 import type { FilterRule, SortRule } from '@/lib/table/types'
 import { DELETED_WORKFLOW_LABEL } from '@/lib/workflows/workflow-labels'
@@ -632,4 +642,22 @@ export function resolveFolderPathLabel(
     }
   })
   return summarizeNames(names)
+}
+
+/**
+ * Reads an ITSM Approval or Assign group value as one line, e.g.
+ * `(Users: A and Bins: B) or (Users: C)`. A value with no complete row reads
+ * as `-`, never as its stored JSON.
+ */
+export function resolveItsmGroupsLabel(
+  subBlock: SubBlockConfig | undefined,
+  rawValue: unknown
+): string | null {
+  if (subBlock?.type === ITSM_APPROVERS_SUBBLOCK_TYPE) {
+    return summarizeItsmApproverGroups(parseItsmApproverGroups(rawValue)) || '-'
+  }
+  if (subBlock?.type === ITSM_ASSIGNEES_SUBBLOCK_TYPE) {
+    return summarizeItsmAssigneeGroups(parseItsmAssigneeGroups(rawValue)) || '-'
+  }
+  return null
 }

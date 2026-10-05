@@ -9,7 +9,7 @@ import { workflowIdParamsSchema } from '@/lib/api/contracts/workflows'
  * `branches[].next` / `elseNext`; `null` ends the rule and the process
  * continues. `schemaVersion` changes on any breaking change to this shape.
  */
-export const ITSM_RULE_SCHEMA_VERSION = '1.0'
+export const ITSM_RULE_SCHEMA_VERSION = '2.0'
 
 /** A master-data reference. `id` is ITSM's id; `name` is informational. */
 const itsmRefSchema = z.object({
@@ -56,32 +56,35 @@ const itsmRuleConditionNodeSchema = z.object({
   elseNext: nextNodeSchema,
 })
 
+/**
+ * One approver entry: approved when any one of `anyOf` approves. A bin
+ * approves when any one of its members does.
+ */
 const itsmRuleApproverSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('user'), id: z.string().min(1), name: z.string() }),
-  /** Approved when any one member of the department approves. */
+  z.object({ kind: z.literal('users'), anyOf: z.array(itsmRefSchema).min(1) }),
   z.object({
-    kind: z.literal('department'),
-    id: z.string().min(1),
-    name: z.string(),
-  }),
-  /** Approved when any one member of the bin approves. */
-  z.object({
-    kind: z.literal('bin'),
-    id: z.string().min(1),
-    name: z.string(),
-    /** The bin's department, or null when ITSM listed the bin without one. */
-    department: itsmRefSchema.nullable(),
+    kind: z.literal('bins'),
+    anyOf: z
+      .array(
+        itsmRefSchema.extend({
+          /** The bin's department, or null when ITSM listed the bin without one. */
+          department: itsmRefSchema.nullable(),
+        })
+      )
+      .min(1),
   }),
 ])
 
 /**
  * A timed step: when the ticket has waited `after` `unit` here without moving
- * on, ITSM escalates it to `users` (if any) and continues to `next`.
+ * on, ITSM escalates it to `level` and `users` (if any) and continues to `next`.
  */
 const itsmRuleEscalationNodeSchema = z.object({
   id: nodeIdSchema,
   type: z.literal('escalation'),
   label: z.string(),
+  /** The escalation level (L1, L2, ...); ITSM identifies a level by its name. */
+  level: itsmRefSchema,
   after: z.number().positive(),
   unit: z.enum(['minutes', 'hours', 'days']),
   /** Users the ticket is escalated to. May be empty. */
@@ -93,10 +96,14 @@ const itsmRuleApprovalNodeSchema = z.object({
   id: nodeIdSchema,
   type: z.literal('approval'),
   label: z.string(),
-  level: itsmRefSchema,
-  approvers: z.array(itsmRuleApproverSchema).min(1),
-  /** `any`: one approval moves the ticket on; `all`: every approver entry must approve. */
-  mode: z.enum(['any', 'all']),
+  /**
+   * Approved when any group in `any` is approved; a group is approved when
+   * every entry in its `all` is. The order of Approval nodes along the rule
+   * is the order of approval levels.
+   */
+  approvers: z.object({
+    any: z.array(z.object({ all: z.array(itsmRuleApproverSchema).min(1) })).min(1),
+  }),
   /** Where an approved ticket goes. Rejection is handled by ITSM. */
   next: nextNodeSchema,
 })
@@ -134,7 +141,13 @@ const itsmRuleAssignNodeSchema = z.object({
   id: nodeIdSchema,
   type: z.literal('assign'),
   label: z.string(),
-  assignee: itsmRuleAssigneeSchema,
+  /**
+   * Groups in `any` are alternatives (OR); the assignees in a group's `all`
+   * apply together (AND). ITSM decides how to act on each combination.
+   */
+  assignees: z.object({
+    any: z.array(z.object({ all: z.array(itsmRuleAssigneeSchema).min(1) })).min(1),
+  }),
   next: nextNodeSchema,
 })
 
