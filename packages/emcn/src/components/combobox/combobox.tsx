@@ -892,31 +892,32 @@ const Combobox = memo(
                         overlayContent && 'text-transparent'
                       )}
                     />
-                    {showClear && (
+                    {showClear ? (
                       <button
                         type='button'
                         aria-label='Clear selection'
-                        className='ml-1 flex size-4 shrink-0 items-center justify-center rounded-sm border-0 bg-transparent p-0 text-[var(--text-icon)] opacity-60 transition-opacity hover-hover:opacity-100'
+                        className='ml-2 flex size-4 shrink-0 items-center justify-center rounded-sm border-0 bg-transparent p-0 text-[var(--text-icon)] opacity-60 transition-opacity hover-hover:opacity-100'
                         onClick={(event) => {
                           event.stopPropagation()
                           onClear?.()
                         }}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
-                        <X className='size-3' />
+                        <X className='size-3.5' />
                       </button>
+                    ) : (
+                      <ChevronDown
+                        className={cn(
+                          'ml-2 size-4 shrink-0 opacity-50 transition-transform',
+                          open && 'rotate-180'
+                        )}
+                      />
                     )}
-                    <ChevronDown
-                      className={cn(
-                        'ml-2 size-4 shrink-0 opacity-50 transition-transform',
-                        open && 'rotate-180'
-                      )}
-                    />
                     {overlayContent && (
                       <div
                         className={cn(
                           'pointer-events-none absolute inset-y-0 left-0 flex items-center px-2',
-                          showClear ? 'right-[44px]' : 'right-[24px]'
+                          'right-[24px]'
                         )}
                       >
                         <OverflowText label={visualLabel} className='w-full' tooltipEnabled={false}>

@@ -499,7 +499,7 @@ export const WorkflowItem = memo(function WorkflowItem({
         onDuplicate={handleDuplicate}
         onExport={handleExport}
         onDelete={handleOpenDeleteModal}
-        showOpenInNewTab={!isMixedSelection && selectedWorkflows.size <= 1}
+        showOpenInNewTab={false}
         showRename={!isMixedSelection && selectedWorkflows.size <= 1}
         showDuplicate={false}
         showExport={true}

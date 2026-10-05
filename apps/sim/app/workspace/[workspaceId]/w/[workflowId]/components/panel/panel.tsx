@@ -2,17 +2,12 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BubbleChatClose,
-  BubbleChatPreview,
   Button,
-  Chip,
   ChipConfirmModal,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Duplicate,
   Layout,
   MoreHorizontal,
   Popover,
@@ -31,8 +26,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import { usePostHog } from 'posthog-js/react'
 import { useShallow } from 'zustand/react/shallow'
-import { VariableIcon } from '@/components/icons'
-import { ThinkingLoader } from '@/components/ui'
 import { requestJson } from '@/lib/api/client/request'
 import {
   createWorkflowCopilotChatContract,
@@ -57,15 +50,11 @@ import { useWorkspaceHostContext } from '@/app/workspace/[workspaceId]/providers
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/providers/workspace-permissions-provider'
 import { createCommands } from '@/app/workspace/[workspaceId]/utils/commands-utils'
 import {
-  Deploy,
   Editor,
   ItsmSave,
   Toolbar,
 } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components'
-import {
-  usePanelResize,
-  useUsageLimits,
-} from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/hooks'
+import { useUsageLimits } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/hooks'
 import { Variables } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/variables/variables'
 import { useAutoLayout } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-auto-layout'
 import { useCurrentWorkflow } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-current-workflow'
@@ -225,7 +214,6 @@ export const Panel = memo(function Panel() {
   const { handleRunWorkflow, handleCancelExecution, isExecuting } = useWorkflowExecution()
 
   // Panel resize hook
-  const { handlePointerDown } = usePanelResize()
 
   /**
    * Opens subscription settings modal
@@ -736,10 +724,6 @@ export const Panel = memo(function Panel() {
                     <Layout animate={isAutoLayouting} variant='clockwise' />
                     Auto layout
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setVariablesOpen(!isVariablesOpen)}>
-                    <VariableIcon />
-                    Variables
-                  </DropdownMenuItem>
                   {userPermissions.canAdmin && !isSnapshotView && (
                     <DropdownMenuItem
                       onSelect={handleToggleWorkflowLock}
@@ -763,13 +747,6 @@ export const Panel = memo(function Panel() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                className='size-[30px] rounded-[5px]'
-                variant={isChatOpen ? 'active' : 'default'}
-                onClick={() => setIsChatOpen(!isChatOpen)}
-              >
-                {isChatOpen ? <BubbleChatClose /> : <BubbleChatPreview />}
-              </Button>
             </div>
 
             <ItsmSave
@@ -952,15 +929,6 @@ export const Panel = memo(function Panel() {
             </div>
           </div>
         </div>
-
-        {/* Resize Handle */}
-        <div
-          className='absolute top-0 bottom-0 left-[-4px] z-20 w-[8px] cursor-ew-resize'
-          onPointerDown={handlePointerDown}
-          role='separator'
-          aria-orientation='vertical'
-          aria-label='Resize panel'
-        />
       </aside>
 
       {/* Delete Confirmation Modal */}

@@ -26,10 +26,10 @@ const API_ENDPOINTS = {
  */
 export const CONTENT_WINDOW_GAP = 0
 
-/** Sidebar width constraints */
+/** Sidebar width constraints. The expanded rail is fixed-width (MIN = DEFAULT), not resizable in the workspace. */
 export const SIDEBAR_WIDTH = {
-  DEFAULT: 256,
-  MIN: 256,
+  DEFAULT: 196,
+  MIN: 196,
   /** Width when sidebar is collapsed to icon-only mode */
   COLLAPSED: 48,
   /**

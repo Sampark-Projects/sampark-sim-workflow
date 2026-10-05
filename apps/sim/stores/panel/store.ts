@@ -49,6 +49,12 @@ export const usePanelStore = create<PanelState>()(
         panelWidth: state.panelWidth,
         activeTab: state.activeTab,
       }),
+      /** The panel is fixed-width, so a width persisted from when it was resizable is dropped. */
+      merge: (persisted, current) => ({
+        ...current,
+        ...(persisted as Partial<typeof current>),
+        panelWidth: current.panelWidth,
+      }),
       onRehydrateStorage: () => (state) => {
         // Sync CSS variables with stored state after rehydration
         if (state && typeof window !== 'undefined') {
