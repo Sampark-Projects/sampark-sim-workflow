@@ -436,7 +436,7 @@ function RowEditor({
             editable={false}
           />
         </div>
-        <div className='w-[104px] shrink-0'>
+        <div className='w-[82px] shrink-0'>
           <Combobox
             options={OPERATOR_OPTIONS}
             value={row.operator}

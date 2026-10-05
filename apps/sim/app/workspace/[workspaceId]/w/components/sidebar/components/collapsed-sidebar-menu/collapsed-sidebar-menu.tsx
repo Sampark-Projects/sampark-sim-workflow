@@ -15,7 +15,7 @@ import {
   Loader,
   OverflowText,
 } from '@sim/emcn'
-import { MoreHorizontal, Pencil, Pin, Plus, SquareArrowUpRight } from '@sim/emcn/icons'
+import { MoreHorizontal, Pencil, Pin, Plus } from '@sim/emcn/icons'
 import Link from 'next/link'
 import { ConversationListItem } from '@/app/workspace/[workspaceId]/components'
 import type { FlyoutEntry } from '@/app/workspace/[workspaceId]/components/folders'
@@ -429,12 +429,6 @@ export function CollapsedWorkflowFlyoutItem({
               </DropdownMenuItemAction>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
-              {onOpenInNewTab && (
-                <DropdownMenuItem onSelect={onOpenInNewTab}>
-                  <SquareArrowUpRight className='size-[14px]' />
-                  Open in new tab
-                </DropdownMenuItem>
-              )}
               {onRename && (
                 <DropdownMenuItem
                   disabled={!canRename}
