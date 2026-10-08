@@ -34,6 +34,10 @@ const CACHE_MAX_ENTRIES = 500
  */
 const CUSTOMER_DROPDOWN_PATH = '/ticket-management/api/ext/fetch/dropdown'
 
+/** App-wide constants (not per customer), the list chosen by `codeId`. */
+const APP_CONSTANT_PATH = '/ticket-management/api/ext/fetch/app/constant'
+const TICKET_PROCESS_CODE_ID = 'TICKET_PROCESS'
+
 /** The gateway's "no rows" answer: HTTP 200 carrying `statusCode: 202`. */
 const NO_DATA_STATUS_CODE = 202
 
@@ -78,14 +82,16 @@ export function resolveItsmGatewayUrl(): string {
   return url.replace(/\/+$/, '')
 }
 
-/**
- * POSTs to one gateway endpoint and returns its `responseObject`, or `null`
- * when the gateway reports that there is no data.
- */
-async function callGateway(
-  path: string,
-  body: Record<string, unknown>
-): Promise<Record<string, unknown> | null> {
+const appConstantEnvelopeSchema = z.object({
+  hasError: z.boolean(),
+  message: z.string().nullish(),
+  data: z
+    .array(z.object({ keyCode: z.string().min(1), codeValue: z.string().nullish() }))
+    .nullish(),
+})
+
+/** POSTs a JSON body to one gateway endpoint and returns the parsed JSON body. */
+async function postGateway(path: string, body: Record<string, unknown>): Promise<unknown> {
   const baseUrl = resolveItsmGatewayUrl()
   const headers = { 'Content-Type': 'application/json' }
   let response: Response
@@ -103,8 +109,18 @@ async function callGateway(
   if (!response.ok) {
     throw new ItsmGatewayRequestError(`ITSM gateway responded with HTTP ${response.status}`)
   }
+  return response.json().catch(() => null)
+}
 
-  const envelope = envelopeSchema.safeParse(await response.json().catch(() => null))
+/**
+ * POSTs to one gateway endpoint and returns its `responseObject`, or `null`
+ * when the gateway reports that there is no data.
+ */
+async function callGateway(
+  path: string,
+  body: Record<string, unknown>
+): Promise<Record<string, unknown> | null> {
+  const envelope = envelopeSchema.safeParse(await postGateway(path, body))
   if (!envelope.success) {
     throw new ItsmGatewayRequestError('ITSM gateway returned an unexpected response shape')
   }
@@ -377,4 +393,27 @@ export async function listItsmAssignmentRules(customerId: string): Promise<ItsmM
 export function clearItsmMasterDataCacheForTests(): void {
   masterDataCache.clear()
   recentFailures.clear()
+}
+
+/**
+ * The ticket processes a Service Request rule can run (Bin Assignment, User
+ * Assignment, Ticket Approval). App-wide, so cached under one key for every
+ * customer; a process is identified by its `keyCode`.
+ */
+export function listItsmTicketProcesses(): Promise<ItsmMasterDataOption[]> {
+  return cached(JSON.stringify(['app-constant', TICKET_PROCESS_CODE_ID]), async () => {
+    const envelope = appConstantEnvelopeSchema.safeParse(
+      await postGateway(APP_CONSTANT_PATH, { codeId: TICKET_PROCESS_CODE_ID })
+    )
+    if (!envelope.success) {
+      throw new ItsmGatewayRequestError('ITSM gateway returned an unexpected response shape')
+    }
+    if (envelope.data.hasError) {
+      throw new ItsmGatewayRequestError(envelope.data.message || 'ITSM gateway error')
+    }
+    return (envelope.data.data ?? []).map((item) => ({
+      id: item.keyCode,
+      name: cleanName(item.codeValue, item.keyCode),
+    }))
+  })
 }

@@ -120,13 +120,18 @@ export const publishItsmRule = defineAuthorizedWorkflowUseCase({
         workflowId: context.workflowId,
         savedBySimUserId: principal.userId,
       },
-      rule,
+      workflow: rule,
     }
     try {
       await deliverItsmRuleSavedEvent(event)
     } catch (error) {
       if (error instanceof ItsmRuleRejectedError) {
-        throw new OrchestrationError('validation', `ITSM did not accept the rule: ${error.message}`)
+        return {
+          status: 'rejected',
+          message: `ITSM did not accept the rule: ${error.message}`,
+          event,
+          warnings,
+        }
       }
       if (error instanceof ItsmRuleDeliveryUnavailableError) {
         throw new OrchestrationError(

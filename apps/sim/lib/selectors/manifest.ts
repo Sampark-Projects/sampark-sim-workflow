@@ -406,6 +406,7 @@ export const selectorManifest = {
   }),
   'itsm.statuses': internalSelector(),
   'itsm.severities': internalSelector(),
+  'itsm.processes': internalSelector(),
   'itsm.levels': internalSelector(),
   'itsm.assignmentRules': internalSelector(),
   'providers.ollamaEmbeddingModels': internalSelector(),

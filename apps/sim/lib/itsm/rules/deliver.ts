@@ -47,7 +47,7 @@ export async function deliverItsmRuleSavedEvent(event: ItsmRuleSavedEvent): Prom
   const context = {
     workflowId: event.source.workflowId,
     customerId: event.source.customerId,
-    nodeCount: event.rule.nodes.length,
+    processCount: event.workflow.processes.length,
   }
 
   let response: Response

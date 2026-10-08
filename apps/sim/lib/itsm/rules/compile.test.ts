@@ -2,6 +2,7 @@
  * @vitest-environment node
  */
 import { describe, expect, it } from 'vitest'
+import type { ItsmRule } from '@/lib/api/contracts/itsm-rules'
 import type {
   ItsmBinOption,
   ItsmMasterDataOption,
@@ -49,6 +50,11 @@ const lookup: ItsmMasterDataLookup = {
   severities: byId([
     { id: 'SEV-0', name: 'SEV-0' },
     { id: 'SEV-1', name: 'SEV-1' },
+  ]),
+  processes: byId([
+    { id: 'BIN_ASSIGNMENT', name: 'Bin Assignment' },
+    { id: 'USER_ASSIGNMENT', name: 'User Assignment' },
+    { id: 'TICKET_APPROVAL', name: 'Ticket Approval' },
   ]),
   levels: byId([
     { id: 'L1', name: 'L1' },
@@ -135,7 +141,7 @@ function categoryRow(category: string | null, subcategory: string | null = null)
   })
 }
 
-function graph(blocks: ItsmRuleGraphBlock[], edges: ItsmRuleGraphEdge[]): ItsmRuleGraph {
+function rawGraph(blocks: ItsmRuleGraphBlock[], edges: ItsmRuleGraphEdge[]): ItsmRuleGraph {
   return {
     workflowId: 'wf-1',
     name: 'Service Request routing',
@@ -143,6 +149,26 @@ function graph(blocks: ItsmRuleGraphBlock[], edges: ItsmRuleGraphEdge[]): ItsmRu
     blocks: Object.fromEntries(blocks.map((candidate) => [candidate.id, candidate])),
     edges,
   }
+}
+
+/**
+ * A graph whose Start block leads into one Ticket Approval process block
+ * (`proc`), which then leads wherever the edges from `start` pointed.
+ */
+function graph(blocks: ItsmRuleGraphBlock[], edges: ItsmRuleGraphEdge[]): ItsmRuleGraph {
+  if (!edges.some((edge) => edge.source === 'start')) return rawGraph(blocks, edges)
+  return rawGraph(
+    [...blocks, block('proc', 'itsm_process', { process: 'TICKET_APPROVAL' })],
+    [
+      { source: 'start', sourceHandle: 'source', target: 'proc' },
+      ...edges.map((edge) => (edge.source === 'start' ? { ...edge, source: 'proc' } : edge)),
+    ]
+  )
+}
+
+/** Every node of every process, in process order. */
+function nodesOf(rule: ItsmRule | null | undefined) {
+  return rule?.processes.flatMap((process) => process.nodes) ?? []
 }
 
 const branches: ItsmConditionBranch[] = [
@@ -251,8 +277,11 @@ describe('compileItsmRule', () => {
 
     expect(errors).toEqual([])
     expect(warnings).toEqual([])
-    expect(rule?.startNodeId).toBe('cond')
-    expect(rule?.nodes.map((node) => node.id)).toEqual([
+    expect(rule?.processes.map((process) => process.process)).toEqual([
+      { id: 'TICKET_APPROVAL', name: 'Ticket Approval' },
+    ])
+    expect(rule?.processes[0]?.processStartNodeId).toBe('cond')
+    expect(nodesOf(rule).map((node) => node.id)).toEqual([
       'cond',
       'appr-1',
       'assign',
@@ -260,7 +289,7 @@ describe('compileItsmRule', () => {
       'appr-2',
     ])
 
-    expect(rule?.nodes.find((node) => node.id === 'cond')).toEqual({
+    expect(nodesOf(rule).find((node) => node.id === 'cond')).toEqual({
       id: 'cond',
       type: 'condition',
       label: 'cond',
@@ -311,7 +340,7 @@ describe('compileItsmRule', () => {
       elseNext: null,
     })
 
-    expect(rule?.nodes.find((node) => node.id === 'appr-1')).toEqual({
+    expect(nodesOf(rule).find((node) => node.id === 'appr-1')).toEqual({
       id: 'appr-1',
       type: 'approval',
       label: 'appr-1',
@@ -320,7 +349,7 @@ describe('compileItsmRule', () => {
       },
       next: 'esc',
     })
-    expect(rule?.nodes.find((node) => node.id === 'esc')).toEqual({
+    expect(nodesOf(rule).find((node) => node.id === 'esc')).toEqual({
       id: 'esc',
       type: 'escalation',
       label: 'esc',
@@ -330,7 +359,7 @@ describe('compileItsmRule', () => {
       users: [{ id: '4010002', name: 'User Two' }],
       next: 'appr-2',
     })
-    expect(rule?.nodes.find((node) => node.id === 'appr-2')).toMatchObject({
+    expect(nodesOf(rule).find((node) => node.id === 'appr-2')).toMatchObject({
       approvers: {
         any: [
           {
@@ -356,7 +385,7 @@ describe('compileItsmRule', () => {
         ],
       },
     })
-    expect(rule?.nodes.find((node) => node.id === 'assign')).toEqual({
+    expect(nodesOf(rule).find((node) => node.id === 'assign')).toEqual({
       id: 'assign',
       type: 'assign',
       label: 'assign',
@@ -379,15 +408,85 @@ describe('compileItsmRule', () => {
     })
   })
 
-  it('refuses to save a rule with nothing after the start block', () => {
+  it('saves a rule with no processes', () => {
     const { rule, errors } = compileItsmRule(graph([block('start', 'itsm_start')], []), lookup)
-    expect(rule).toBeNull()
-    expect(errors).toEqual([
-      expect.objectContaining({
-        blockId: 'start',
-        message: 'Connect at least one block to the Start block before saving.',
-      }),
+    expect(errors).toEqual([])
+    expect(rule?.processes).toEqual([])
+  })
+
+  it('compiles each process into its own flow, in ITSM order', () => {
+    const input = rawGraph(
+      [
+        block('start', 'itsm_start'),
+        block('p-user', 'itsm_process', { process: 'USER_ASSIGNMENT' }),
+        block('p-bin', 'itsm_process', { process: 'BIN_ASSIGNMENT' }),
+        block('a-user', 'itsm_assign', assignees([userRow('resolver', '4010001')])),
+        block('a-bin', 'itsm_assign', assignees([assigneeRow({ bin: value('2793') })])),
+      ],
+      [
+        { source: 'start', sourceHandle: 'source', target: 'p-user' },
+        { source: 'start', sourceHandle: 'source', target: 'p-bin' },
+        { source: 'p-user', sourceHandle: 'source', target: 'a-user' },
+        { source: 'p-bin', sourceHandle: 'source', target: 'a-bin' },
+      ]
+    )
+    const { rule, errors } = compileItsmRule(input, lookup)
+    expect(errors).toEqual([])
+    expect(
+      rule?.processes.map((process) => [
+        process.process.id,
+        process.processStartNodeId,
+        process.nodes.map((node) => node.id),
+      ])
+    ).toEqual([
+      ['BIN_ASSIGNMENT', 'a-bin', ['a-bin']],
+      ['USER_ASSIGNMENT', 'a-user', ['a-user']],
     ])
+  })
+
+  it('checks how processes are wired', () => {
+    const input = rawGraph(
+      [
+        block('start', 'itsm_start'),
+        block('p1', 'itsm_process', { process: 'BIN_ASSIGNMENT' }),
+        block('p2', 'itsm_process', { process: 'BIN_ASSIGNMENT' }),
+        block('p3', 'itsm_process'),
+        block('p4', 'itsm_process', { process: 'GONE' }),
+        block('p5', 'itsm_process', { process: 'TICKET_APPROVAL' }),
+        block('shared', 'itsm_assign', assignees([assigneeRow({ bin: value('2793') })])),
+        block('loose-process', 'itsm_process', { process: 'USER_ASSIGNMENT' }),
+        block('direct', 'itsm_assign', assignees([assigneeRow({ bin: value('2793') })])),
+      ],
+      [
+        { source: 'start', sourceHandle: 'source', target: 'p1' },
+        { source: 'start', sourceHandle: 'source', target: 'p2' },
+        { source: 'start', sourceHandle: 'source', target: 'p3' },
+        { source: 'start', sourceHandle: 'source', target: 'p4' },
+        { source: 'start', sourceHandle: 'source', target: 'p5' },
+        { source: 'start', sourceHandle: 'source', target: 'direct' },
+        { source: 'p1', sourceHandle: 'source', target: 'shared' },
+        { source: 'p2', sourceHandle: 'source', target: 'shared' },
+        { source: 'shared', sourceHandle: 'source', target: 'loose-process' },
+      ]
+    )
+    const issues = compileItsmRule(input, lookup).errors.map((issue) => [
+      issue.blockId,
+      issue.message,
+    ])
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        ['p2', 'Bin Assignment is already used by "p1".'],
+        [
+          'shared',
+          'This block is reached from more than one process. Each block can belong to only one process.',
+        ],
+        ['p3', 'Choose a process.'],
+        ['p4', 'Process "GONE" no longer exists in ITSM.'],
+        ['p5', 'Connect at least one block after this process.'],
+        ['direct', 'Only Process blocks can connect to the Start block.'],
+        ['loose-process', 'A Process block can only follow the Start block.'],
+      ])
+    )
   })
 
   it('requires exactly one start block', () => {
@@ -405,7 +504,7 @@ describe('compileItsmRule', () => {
     input.edges.push({ source: 'stray', sourceHandle: 'source', target: 'assign' })
     const placed = compileItsmRule(input, lookup)
     expect(placed.errors).toEqual([])
-    expect(placed.rule?.nodes.find((node) => node.id === 'stray')).toMatchObject({
+    expect(nodesOf(placed.rule).find((node) => node.id === 'stray')).toMatchObject({
       type: 'escalation',
       level: { id: 'L2', name: 'L2' },
       after: 2,
@@ -503,15 +602,15 @@ describe('compileItsmRule', () => {
 
   it('rejects one output wired to several blocks, loops, and foreign blocks', () => {
     const input = validGraph()
-    input.edges.push({ source: 'start', sourceHandle: 'source', target: 'assign' })
+    input.edges.push({ source: 'proc', sourceHandle: 'source', target: 'assign' })
     input.edges.push({ source: 'assign', sourceHandle: 'source', target: 'appr-1' })
     input.blocks.agent = block('agent', 'agent')
     input.edges.push({ source: 'cond', sourceHandle: 'condition-cond-else', target: 'agent' })
     const messages = compileItsmRule(input, lookup).errors.map((issue) => issue.message)
     expect(messages).toEqual(
       expect.arrayContaining([
-        'The start block connects to 2 blocks. Connect it to only one.',
-        'The rule loops back on itself. Remove the connection that forms the loop.',
+        'The process block connects to 2 blocks. Connect it to only one.',
+        'This process loops back on itself. Remove the connection that forms the loop.',
         'Only Condition, Approval, Escalation, and Assign blocks can be part of a rule.',
       ])
     )
@@ -539,7 +638,7 @@ describe('compileItsmRule assignments', () => {
   it('assigns to a user of the chosen type', () => {
     const resolver = compileItsmRule(assignGraph([userRow('resolver', '4010001')]), lookup)
     expect(resolver.errors).toEqual([])
-    expect(resolver.rule?.nodes[0]).toMatchObject({
+    expect(nodesOf(resolver.rule)[0]).toMatchObject({
       assignees: {
         any: [{ all: [{ kind: 'user', id: '4010001', name: 'User One', userType: 'resolver' }] }],
       },
@@ -557,7 +656,7 @@ describe('compileItsmRule assignments', () => {
   it('assigns to a category when no subcategory is picked', () => {
     const { rule, errors } = compileItsmRule(assignGraph([categoryRow('OR000500024')]), lookup)
     expect(errors).toEqual([])
-    expect(rule?.nodes[0]).toMatchObject({
+    expect(nodesOf(rule)[0]).toMatchObject({
       assignees: { any: [{ all: [{ kind: 'category', id: 'OR000500024', name: 'CRM-Sales' }] }] },
     })
   })
@@ -568,7 +667,7 @@ describe('compileItsmRule assignments', () => {
       lookup
     )
     expect(errors).toEqual([])
-    expect(rule?.nodes[0]).toMatchObject({
+    expect(nodesOf(rule)[0]).toMatchObject({
       assignees: {
         any: [
           {
@@ -607,7 +706,7 @@ describe('compileItsmRule assignments', () => {
       lookup
     )
     expect(errors).toEqual([])
-    expect(rule?.nodes[0]).toMatchObject({
+    expect(nodesOf(rule)[0]).toMatchObject({
       assignees: {
         any: [
           {
