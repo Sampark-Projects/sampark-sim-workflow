@@ -13,6 +13,7 @@ import { staleSelectionOptions } from '@/app/workspace/[workspaceId]/w/[workflow
 import { formatDisplayText } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/components/formatted-text'
 import { getWorkflowSearchLabelHighlight } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/components/workflow-search-highlight'
 import { useFetchedOptions } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/hooks/use-fetched-options'
+import { useItsmProcessesTaken } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/hooks/use-itsm-processes-taken'
 import { useSubBlockValue } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/hooks/use-sub-block-value'
 import { useActiveSearchTarget } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/providers/active-search-target-provider'
 import { getBlock } from '@/blocks/registry'
@@ -125,6 +126,7 @@ export const Dropdown = memo(function Dropdown({
   ]
 
   const dependsOnFields = useMemo(() => getDependsOnFields(dependsOn), [dependsOn])
+  const processesTaken = useItsmProcessesTaken(blockId, subBlockId)
 
   const blockType = useWorkflowStore((state) => state.blocks[blockId]?.type)
   const workspaceId = useWorkflowRegistry((state) => state.hydration.workspaceId)
@@ -290,6 +292,7 @@ export const Dropdown = memo(function Dropdown({
         hidden:
           opt.hidden ||
           deniedOperationIds.has(opt.id) ||
+          processesTaken.has(opt.id) ||
           (hideOrganizationOperations &&
             [
               'find_organization_account',
@@ -299,7 +302,13 @@ export const Dropdown = memo(function Dropdown({
             ].includes(opt.id)),
       }
     })
-  }, [allOptions, deniedOperationIds, preserveLabelCase, hideOrganizationOperations])
+  }, [
+    allOptions,
+    deniedOperationIds,
+    processesTaken,
+    preserveLabelCase,
+    hideOrganizationOperations,
+  ])
 
   const optionMap = useMemo(() => {
     return new Map(comboboxOptions.map((opt) => [opt.value, opt.label]))

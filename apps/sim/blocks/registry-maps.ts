@@ -170,6 +170,7 @@ import { ItsmApprovalBlock } from '@/blocks/blocks/itsm_approval'
 import { ItsmAssignBlock } from '@/blocks/blocks/itsm_assign'
 import { ItsmConditionBlock } from '@/blocks/blocks/itsm_condition'
 import { ItsmEscalationBlock } from '@/blocks/blocks/itsm_escalation'
+import { ItsmProcessBlock } from '@/blocks/blocks/itsm_process'
 import { ItsmStartBlock } from '@/blocks/blocks/itsm_start'
 import { JinaBlock, JinaBlockMeta } from '@/blocks/blocks/jina'
 import { JiraBlock, JiraBlockMeta } from '@/blocks/blocks/jira'
@@ -549,6 +550,7 @@ export const BLOCK_REGISTRY: Record<string, BlockConfig> = {
   itsm_assign: ItsmAssignBlock,
   itsm_condition: ItsmConditionBlock,
   itsm_escalation: ItsmEscalationBlock,
+  itsm_process: ItsmProcessBlock,
   itsm_start: ItsmStartBlock,
   jina: JinaBlock,
   jira: JiraBlock,

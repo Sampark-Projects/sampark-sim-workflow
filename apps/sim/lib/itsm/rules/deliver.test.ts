@@ -25,7 +25,12 @@ const event: ItsmRuleSavedEvent = {
     workflowId: 'workflow-1',
     savedBySimUserId: 'user-1',
   },
-  rule: { id: 'workflow-1', name: 'Rule', description: '', startNodeId: null, nodes: [] },
+  workflow: {
+    workflowId: 'workflow-1',
+    workflowName: 'Rule',
+    description: '',
+    processes: [],
+  },
 }
 
 const fetchMock = vi.fn()

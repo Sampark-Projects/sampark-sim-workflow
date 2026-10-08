@@ -10,6 +10,7 @@ import {
   listItsmSeverities,
   listItsmStatuses,
   listItsmSubcategories,
+  listItsmTicketProcesses,
   listItsmUsers,
 } from '@/lib/itsm/master-data/gateway.server'
 import {
@@ -153,6 +154,9 @@ export const itsmSelectorAttachments = {
   ),
   'itsm.severities': flatItsmSelector(async (_args, customerId) =>
     toSelectorOptions(await listItsmSeverities(customerId))
+  ),
+  'itsm.processes': flatItsmSelector(async () =>
+    toSelectorOptions(await listItsmTicketProcesses())
   ),
   'itsm.levels': flatItsmSelector(async (_args, customerId) =>
     toSelectorOptions(await listItsmLevels(customerId))

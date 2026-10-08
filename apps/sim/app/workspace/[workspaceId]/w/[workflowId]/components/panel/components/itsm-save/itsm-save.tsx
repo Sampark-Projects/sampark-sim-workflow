@@ -44,6 +44,11 @@ export function ItsmSave({ workflowId, disabled = false }: ItsmSaveProps) {
 
     try {
       const result = await publish.mutateAsync({ workflowId })
+      if (result.status !== 'invalid') console.log(JSON.stringify(result.event, null, 2))
+      if (result.status === 'rejected') {
+        toast.error(result.message)
+        return
+      }
       if (result.status === 'invalid') {
         setReport({ errors: result.errors, warnings: result.warnings })
         return

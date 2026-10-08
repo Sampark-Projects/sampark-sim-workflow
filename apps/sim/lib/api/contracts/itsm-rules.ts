@@ -5,11 +5,13 @@ import { workflowIdParamsSchema } from '@/lib/api/contracts/workflows'
 /**
  * The ITSM rule JSON: the contract between Sim (which designs a rule) and the
  * ITSM backend (which evaluates it). The backend maps a workflow id to the ITSM
- * process it governs, starts at `startNodeId`, and follows `next` /
- * `branches[].next` / `elseNext`; `null` ends the rule and the process
- * continues. `schemaVersion` changes on any breaking change to this shape.
+ * flow it governs. A workflow holds 0 to 3 ticket processes; each process's
+ * flow starts at its
+ * `processStartNodeId` and follows `next` / `branches[].next` / `elseNext`, and
+ * `null` ends that process. `schemaVersion` changes on any breaking change to
+ * this shape.
  */
-export const ITSM_RULE_SCHEMA_VERSION = '2.0'
+export const ITSM_RULE_SCHEMA_VERSION = '3.0'
 
 /** A master-data reference. `id` is ITSM's id; `name` is informational. */
 const itsmRefSchema = z.object({
@@ -158,14 +160,23 @@ export const itsmRuleNodeSchema = z.discriminatedUnion('type', [
   itsmRuleAssignNodeSchema,
 ])
 
+/**
+ * One ticket process and its flow. `process.id` is ITSM's `TICKET_PROCESS`
+ * key code (`BIN_ASSIGNMENT`, `USER_ASSIGNMENT`, `TICKET_APPROVAL`).
+ */
+const itsmRuleProcessSchema = z.object({
+  process: itsmRefSchema,
+  processStartNodeId: nodeIdSchema,
+  nodes: z.array(itsmRuleNodeSchema).min(1),
+})
+
 export const itsmRuleSchema = z.object({
-  /** The Sim workflow id, which ITSM maps to the process this rule governs. */
-  id: z.string().min(1),
-  name: z.string(),
+  /** The Sim workflow id, which ITSM maps to the flow it governs. */
+  workflowId: z.string().min(1),
+  workflowName: z.string(),
   description: z.string(),
-  /** `null` with no nodes: the process continues without any rule. */
-  startNodeId: nextNodeSchema,
-  nodes: z.array(itsmRuleNodeSchema),
+  /** Each process at most once; empty when the rule runs no process. */
+  processes: z.array(itsmRuleProcessSchema),
 })
 
 export const itsmRuleSavedEventSchema = z.object({
@@ -179,7 +190,7 @@ export const itsmRuleSavedEventSchema = z.object({
     workflowId: z.string(),
     savedBySimUserId: z.string(),
   }),
-  rule: itsmRuleSchema,
+  workflow: itsmRuleSchema,
 })
 
 const itsmRuleIssueSchema = z.object({
@@ -191,6 +202,13 @@ const itsmRuleIssueSchema = z.object({
 const publishItsmRuleResponseSchema = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('published'),
+    event: itsmRuleSavedEventSchema,
+    warnings: z.array(itsmRuleIssueSchema),
+  }),
+  /** Sim built the rule but ITSM refused it; `message` is ITSM's reason. */
+  z.object({
+    status: z.literal('rejected'),
+    message: z.string(),
     event: itsmRuleSavedEventSchema,
     warnings: z.array(itsmRuleIssueSchema),
   }),
@@ -210,6 +228,7 @@ export const publishItsmRuleContract = defineRouteContract({
 
 export type ItsmRule = z.output<typeof itsmRuleSchema>
 export type ItsmRuleNode = z.output<typeof itsmRuleNodeSchema>
+export type ItsmRuleProcess = z.output<typeof itsmRuleProcessSchema>
 export type ItsmRuleConditionNode = z.output<typeof itsmRuleConditionNodeSchema>
 export type ItsmRuleApprovalNode = z.output<typeof itsmRuleApprovalNodeSchema>
 export type ItsmRuleEscalationNode = z.output<typeof itsmRuleEscalationNodeSchema>
