@@ -9,6 +9,7 @@ import {
   listItsmSeverities,
   listItsmStatuses,
   listItsmSubcategories,
+  listItsmTicketProcesses,
   listItsmUsers,
 } from '@/lib/itsm/master-data/gateway.server'
 import type { ItsmMasterDataOption } from '@/lib/itsm/master-data/types'
@@ -50,6 +51,7 @@ export async function loadItsmMasterDataLookup(
     statuses,
     severities,
     levels,
+    processes,
     assignmentRules,
     departmentBinLists,
   ] = await Promise.all([
@@ -62,6 +64,7 @@ export async function loadItsmMasterDataLookup(
     ifNeeded('statuses', () => listItsmStatuses(customerId)),
     ifNeeded('severities', () => listItsmSeverities(customerId)),
     ifNeeded('levels', () => listItsmLevels(customerId)),
+    ifNeeded('processes', () => listItsmTicketProcesses()),
     ifNeeded('assignmentRules', () => listItsmAssignmentRules(customerId)),
     listItsmBinsOfDepartments(customerId, binDepartmentIds),
   ])
@@ -88,6 +91,7 @@ export async function loadItsmMasterDataLookup(
     statuses: indexById(statuses),
     severities: indexById(severities),
     levels: indexById(levels),
+    processes: indexById(processes),
     assignmentRules: indexById(assignmentRules),
     departmentBins,
     categorySubcategories,

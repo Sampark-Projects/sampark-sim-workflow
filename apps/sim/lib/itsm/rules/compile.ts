@@ -9,6 +9,7 @@ import type {
   ItsmRuleEscalationNode,
   ItsmRuleIssue,
   ItsmRuleNode,
+  ItsmRuleProcess,
   ItsmRuleRef,
 } from '@/lib/api/contracts/itsm-rules'
 import {
@@ -35,6 +36,8 @@ import {
   ITSM_APPROVAL_BLOCK_TYPE,
   ITSM_ASSIGN_BLOCK_TYPE,
   ITSM_ESCALATION_BLOCK_TYPE,
+  ITSM_PROCESS_BLOCK_TYPE,
+  ITSM_PROCESS_SUBBLOCK_ID,
   ITSM_START_BLOCK_TYPE,
 } from '@/lib/itsm/rules/block-types'
 import {
@@ -87,6 +90,8 @@ export interface ItsmMasterDataLookup {
   statuses: ReadonlyMap<string, ItsmMasterDataOption>
   severities: ReadonlyMap<string, ItsmMasterDataOption>
   levels: ReadonlyMap<string, ItsmMasterDataOption>
+  /** The ticket processes, in ITSM's order. */
+  processes: ReadonlyMap<string, ItsmMasterDataOption>
   assignmentRules: ReadonlyMap<string, ItsmMasterDataOption>
   /** Bin ids per department, for the departments an Approval or Assign bin row names. */
   departmentBins: ReadonlyMap<string, ReadonlySet<string>>
@@ -111,6 +116,7 @@ export type ItsmMasterDataListName =
   | 'statuses'
   | 'severities'
   | 'levels'
+  | 'processes'
   | 'assignmentRules'
 
 const CONDITION_LOOKUP: Record<ItsmConditionField, ItsmMasterDataListName> = {
@@ -211,42 +217,90 @@ export function compileItsmRule(
     return targets[0] ?? null
   }
 
-  const startNodeId = nextFrom(start, SOURCE_HANDLE, 'The start block')
-  /** ITSM stores only rules with at least one step, so an empty rule is not saved. */
-  if (!startNodeId) {
-    issues.error(start, 'Connect at least one block to the Start block before saving.')
-    return { rule: null, errors: issues.errors, warnings: issues.warnings }
-  }
+  const processOrder = [...lookup.processes.keys()]
+  const processes: (ItsmRuleProcess & { order: number })[] = []
+  const processBlockByProcessId = new Map<string, ItsmRuleGraphBlock>()
+  /** Which process block's flow each compiled block belongs to. */
+  const ownerOf = new Map<string, string>()
+  const reached = new Set<string>([start.id])
 
-  const nodes: ItsmRuleNode[] = []
-  const visited = new Set<string>()
-  const queue = startNodeId ? [startNodeId] : []
-  while (queue.length > 0) {
-    const blockId = queue.shift() as string
-    if (visited.has(blockId)) continue
-    visited.add(blockId)
-    const block = graph.blocks[blockId]
-    if (!block) continue
-    if (!block.enabled) {
-      issues.error(block, 'This block is disabled. Enable it or disconnect it.')
+  for (const targetId of new Set(targetsByHandle.get(`${start.id}|${SOURCE_HANDLE}`) ?? [])) {
+    const processBlock = graph.blocks[targetId]
+    reached.add(targetId)
+    if (processBlock.type !== ITSM_PROCESS_BLOCK_TYPE) {
+      issues.error(processBlock, 'Only Process blocks can connect to the Start block.')
+      continue
+    }
+    if (!processBlock.enabled) {
+      issues.error(processBlock, 'This block is disabled. Enable it or disconnect it.')
+      continue
+    }
+    const process = readProcess(processBlock, lookup, issues)
+    if (process) {
+      const other = processBlockByProcessId.get(process.id)
+      if (other) {
+        issues.error(processBlock, `${process.name} is already used by "${other.name}".`)
+      } else {
+        processBlockByProcessId.set(process.id, processBlock)
+      }
+    }
+
+    const startNodeId = nextFrom(processBlock, SOURCE_HANDLE, 'The process block')
+    if (!startNodeId) {
+      issues.error(processBlock, 'Connect at least one block after this process.')
       continue
     }
 
-    const node = compileNode(block, { graph, lookup, issues, nextFrom, visited })
-    if (!node) continue
-    nodes.push(node)
-    for (const next of successorsOf(node)) {
-      if (!visited.has(next)) queue.push(next)
+    const nodes: ItsmRuleNode[] = []
+    const visited = new Set<string>()
+    const queue = [startNodeId]
+    while (queue.length > 0) {
+      const blockId = queue.shift() as string
+      if (visited.has(blockId)) continue
+      visited.add(blockId)
+      reached.add(blockId)
+      const block = graph.blocks[blockId]
+      if (!block) continue
+      const owner = ownerOf.get(blockId)
+      if (owner !== undefined && owner !== processBlock.id) {
+        issues.error(
+          block,
+          'This block is reached from more than one process. Each block can belong to only one process.'
+        )
+        continue
+      }
+      ownerOf.set(blockId, processBlock.id)
+      if (!block.enabled) {
+        issues.error(block, 'This block is disabled. Enable it or disconnect it.')
+        continue
+      }
+
+      const node = compileNode(block, { graph, lookup, issues, nextFrom })
+      if (!node) continue
+      nodes.push(node)
+      for (const next of successorsOf(node)) {
+        if (!visited.has(next)) queue.push(next)
+      }
+    }
+
+    if (hasCycle(startNodeId, new Map(nodes.map((node) => [node.id, node])))) {
+      issues.error(
+        processBlock,
+        'This process loops back on itself. Remove the connection that forms the loop.'
+      )
+    }
+    if (process) {
+      processes.push({
+        process,
+        processStartNodeId: startNodeId,
+        nodes,
+        order: processOrder.indexOf(process.id),
+      })
     }
   }
 
-  const nodesById = new Map(nodes.map((node) => [node.id, node]))
-  if (hasCycle(startNodeId, nodesById)) {
-    issues.error(null, 'The rule loops back on itself. Remove the connection that forms the loop.')
-  }
-
   for (const block of blocks) {
-    if (block.id === start.id || visited.has(block.id)) continue
+    if (reached.has(block.id)) continue
     issues.warn(block, 'Not connected to the start block, so it is not sent to ITSM.')
   }
 
@@ -254,15 +308,35 @@ export function compileItsmRule(
     return { rule: null, errors: issues.errors, warnings: issues.warnings }
   return {
     rule: {
-      id: graph.workflowId,
-      name: graph.name,
+      workflowId: graph.workflowId,
+      workflowName: graph.name,
       description: graph.description,
-      startNodeId,
-      nodes,
+      processes: processes
+        .sort((a, b) => a.order - b.order)
+        .map(({ order: _order, ...process }) => process),
     },
     errors: issues.errors,
     warnings: issues.warnings,
   }
+}
+
+/** The ticket process a Process block runs, or null after reporting why it has none. */
+function readProcess(
+  block: ItsmRuleGraphBlock,
+  lookup: ItsmMasterDataLookup,
+  issues: IssueCollector
+): ItsmRuleRef | null {
+  const id = readId(block.subBlocks[ITSM_PROCESS_SUBBLOCK_ID]?.value)
+  if (!id) {
+    issues.error(block, 'Choose a process.')
+    return null
+  }
+  const process = lookup.processes.get(id)
+  if (!process) {
+    issues.error(block, `Process "${id}" no longer exists in ITSM.`)
+    return null
+  }
+  return toRef(process)
 }
 
 type NextFrom = (block: ItsmRuleGraphBlock, handle: string, what: string) => string | null
@@ -272,8 +346,6 @@ interface CompileContext {
   lookup: ItsmMasterDataLookup
   issues: IssueCollector
   nextFrom: NextFrom
-  /** Blocks already compiled. */
-  visited: Set<string>
 }
 
 function compileNode(block: ItsmRuleGraphBlock, context: CompileContext): ItsmRuleNode | null {
@@ -287,6 +359,9 @@ function compileNode(block: ItsmRuleGraphBlock, context: CompileContext): ItsmRu
       return compileEscalation(block, lookup, issues, nextFrom)
     case ITSM_ASSIGN_BLOCK_TYPE:
       return compileAssign(block, lookup, issues, nextFrom)
+    case ITSM_PROCESS_BLOCK_TYPE:
+      issues.error(block, 'A Process block can only follow the Start block.')
+      return null
     default:
       issues.error(
         block,
@@ -859,6 +934,9 @@ export function collectItsmMasterDataNeeds(graph: ItsmRuleGraph): ItsmMasterData
             if (row.departments.length > 0) lists.add('departments')
           }
         }
+        break
+      case ITSM_PROCESS_BLOCK_TYPE:
+        if (readId(values(ITSM_PROCESS_SUBBLOCK_ID))) lists.add('processes')
         break
       case ITSM_ESCALATION_BLOCK_TYPE:
         if (readId(values('level'))) lists.add('levels')
