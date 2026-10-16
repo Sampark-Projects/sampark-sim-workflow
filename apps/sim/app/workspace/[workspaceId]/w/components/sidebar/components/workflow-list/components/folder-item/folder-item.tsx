@@ -592,7 +592,7 @@ export const FolderItem = memo(function FolderItem({ workspaceId, folder }: Fold
         onDuplicate={handleDuplicate}
         onExport={handleExport}
         onDelete={handleOpenDeleteModal}
-        showCreate={!isMixedSelection && selectedFolders.size <= 1}
+        showCreate={false}
         showCreateFolder={!isMixedSelection && selectedFolders.size <= 1}
         showRename={!isMixedSelection && selectedFolders.size <= 1}
         showDuplicate={true}

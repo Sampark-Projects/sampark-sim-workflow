@@ -183,11 +183,17 @@ describe('WorkspacesSection', () => {
     expect(rows()).toHaveLength(5)
   })
 
-  it('uses the shared pin mutation and permission-aware rename action', async () => {
+  it('uses the shared pin mutation and offers no rename or delete', async () => {
     await render()
     await act(async () =>
       container.querySelector<HTMLButtonElement>('[aria-label="Options for Workspace 1"]')?.click()
     )
+    const items = () =>
+      Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).map(
+        (item) => item.textContent
+      )
+    expect(items()).not.toContain('Rename')
+    expect(items()).not.toContain('Delete')
     const pin = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
       (item) => item.textContent === 'Pin'
     )
@@ -197,41 +203,6 @@ describe('WorkspacesSection', () => {
       { workspaceId: 'ws-1', pinned: true },
       expect.any(Object)
     )
-    await act(async () =>
-      container.querySelector<HTMLButtonElement>('[aria-label="Options for Workspace 1"]')?.click()
-    )
-    const rename = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
-      (item) => item.textContent === 'Rename'
-    )
-    await act(async () => rename?.click())
-    const input = container.querySelector<HTMLInputElement>(
-      '[aria-label="Rename workspace Workspace 1"]'
-    )!
-    expect(input).not.toBeNull()
-    expect(input.parentElement?.textContent).toBe('1')
-    expect(input.parentElement?.className).toContain('surface-active')
-    await act(async () => typeInto(input, 'Renamed workspace'))
-    await act(async () =>
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
-    )
-    expect(state.mockRename).toHaveBeenCalledWith({
-      workspaceId: 'ws-1',
-      name: 'Renamed workspace',
-    })
-  })
-
-  it('prevents a read-only viewer from renaming while retaining pinning', async () => {
-    state.workspaces[0].permissions = 'read'
-    await render()
-    await act(async () =>
-      container.querySelector<HTMLButtonElement>('[aria-label="Options for Workspace 1"]')?.click()
-    )
-    const rename = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
-      (item) => item.textContent === 'Rename'
-    )
-    expect(rename?.getAttribute('aria-disabled')).toBe('true')
-    await act(async () => rename?.click())
-    expect(container.querySelector('[aria-label="Rename workspace Workspace 1"]')).toBeNull()
     expect(state.mockRename).not.toHaveBeenCalled()
   })
 

@@ -1,5 +1,5 @@
 import { generateId } from '@sim/utils/id'
-import { ITSM_START_BLOCK_TYPE } from '@/lib/itsm/rules/block-types'
+import { ITSM_PROCESS_BLOCK_TYPE, ITSM_START_BLOCK_TYPE } from '@/lib/itsm/rules/block-types'
 import { getEffectiveBlockOutputs } from '@/lib/workflows/blocks/block-outputs'
 import { createDefaultInputFormatField } from '@/lib/workflows/input-format'
 import { getBlock } from '@/blocks'
@@ -14,10 +14,12 @@ export interface DefaultWorkflowArtifacts {
 
 /**
  * Every workflow in this deployment is an ITSM rule, so a new workflow starts
- * at the ITSM start block rather than Sim's run-oriented Start block.
+ * at the ITSM start block rather than Sim's run-oriented Start block, already
+ * connected to one Process block whose process is still to be chosen.
  */
 const START_BLOCK_TYPE = ITSM_START_BLOCK_TYPE
 const DEFAULT_START_POSITION = { x: 0, y: 0 }
+const DEFAULT_PROCESS_POSITION = { x: 400, y: 0 }
 
 function cloneDefaultValue(value: unknown): unknown {
   if (Array.isArray(value)) {
@@ -55,19 +57,20 @@ function resolveInitialValue(subBlock: SubBlockConfig): unknown {
   return null
 }
 
-function buildStartBlockConfig(): BlockConfig {
-  const blockConfig = getBlock(START_BLOCK_TYPE)
+function requireBlockConfig(type: string): BlockConfig {
+  const blockConfig = getBlock(type)
 
   if (!blockConfig) {
-    throw new Error('Start trigger block configuration is not registered')
+    throw new Error(`Block configuration "${type}" is not registered`)
   }
 
   return blockConfig
 }
 
-function buildStartBlockState(
+function buildBlockState(
   blockConfig: BlockConfig,
-  blockId: string
+  blockId: string,
+  position: { x: number; y: number }
 ): { blockState: BlockState; subBlockValues: Record<string, unknown> } {
   const subBlocks: Record<string, SubBlockState> = {}
   const subBlockValues: Record<string, unknown> = {}
@@ -93,7 +96,7 @@ function buildStartBlockState(
     id: blockId,
     type: blockConfig.type,
     name: blockConfig.name,
-    position: { ...DEFAULT_START_POSITION },
+    position: { ...position },
     subBlocks,
     outputs,
     enabled: true,
@@ -110,16 +113,34 @@ function buildStartBlockState(
 }
 
 export function buildDefaultWorkflowArtifacts(): DefaultWorkflowArtifacts {
-  const blockConfig = buildStartBlockConfig()
   const startBlockId = generateId()
+  const processBlockId = generateId()
 
-  const { blockState, subBlockValues } = buildStartBlockState(blockConfig, startBlockId)
+  const start = buildBlockState(
+    requireBlockConfig(START_BLOCK_TYPE),
+    startBlockId,
+    DEFAULT_START_POSITION
+  )
+  const process = buildBlockState(
+    requireBlockConfig(ITSM_PROCESS_BLOCK_TYPE),
+    processBlockId,
+    DEFAULT_PROCESS_POSITION
+  )
 
   const workflowState: WorkflowState = {
     blocks: {
-      [startBlockId]: blockState,
+      [startBlockId]: start.blockState,
+      [processBlockId]: process.blockState,
     },
-    edges: [],
+    edges: [
+      {
+        id: generateId(),
+        source: startBlockId,
+        target: processBlockId,
+        sourceHandle: 'source',
+        targetHandle: 'target',
+      },
+    ],
     loops: {},
     parallels: {},
     lastSaved: Date.now(),
@@ -128,7 +149,8 @@ export function buildDefaultWorkflowArtifacts(): DefaultWorkflowArtifacts {
   return {
     workflowState,
     subBlockValues: {
-      [startBlockId]: subBlockValues,
+      [startBlockId]: start.subBlockValues,
+      [processBlockId]: process.subBlockValues,
     },
     startBlockId,
   }

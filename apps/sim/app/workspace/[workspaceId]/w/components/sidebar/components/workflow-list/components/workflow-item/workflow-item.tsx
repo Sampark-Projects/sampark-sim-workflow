@@ -368,16 +368,6 @@ export const WorkflowItem = memo(function WorkflowItem({
     onItemDragEnd()
   }, [handleDragEndBase, onItemDragEnd])
 
-  const handleDoubleClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      if (effectiveLocked) return
-      handleStartEdit()
-    },
-    [handleStartEdit, effectiveLocked]
-  )
-
   const handleWorkflowSelect = useCallback(
     (e: React.MouseEvent<HTMLAnchorElement>) => {
       e.stopPropagation()
@@ -440,7 +430,7 @@ export const WorkflowItem = memo(function WorkflowItem({
                 spellCheck='false'
               />
             ) : (
-              <div className='min-w-0' onDoubleClick={handleDoubleClick}>
+              <div className='min-w-0'>
                 <OverflowText label={workflow.name} className='block text-[var(--text-body)]' />
               </div>
             )}
@@ -500,7 +490,7 @@ export const WorkflowItem = memo(function WorkflowItem({
         onExport={handleExport}
         onDelete={handleOpenDeleteModal}
         showOpenInNewTab={false}
-        showRename={!isMixedSelection && selectedWorkflows.size <= 1}
+        showRename={false}
         showDuplicate={false}
         showExport={true}
         disableRename={!userPermissions.canEdit || effectiveLocked}
