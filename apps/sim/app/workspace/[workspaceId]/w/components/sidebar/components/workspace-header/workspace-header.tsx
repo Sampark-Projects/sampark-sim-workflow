@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, type ReactElement, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import {
   Chip,
   ChipChevronDown,
@@ -15,11 +15,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   OverflowText,
-  Plus,
   Skeleton,
   scrollFadeAttributes,
   scrollFadeClass,
-  Tooltip,
   toast,
   useScrollEdges,
 } from '@sim/emcn'
@@ -35,42 +33,15 @@ import { getWorkspaceInitial } from '@/lib/workspaces/initials'
 import { InviteModal } from '@/app/workspace/[workspaceId]/components/invite-modal'
 import { useWorkspacePermissionsContext } from '@/app/workspace/[workspaceId]/providers/workspace-permissions-provider'
 import { SidebarRenameRow } from '@/app/workspace/[workspaceId]/w/components/sidebar/components/sidebar-rename-row'
-import { DeleteModal } from '@/app/workspace/[workspaceId]/w/components/sidebar/components/workflow-list/components/delete-modal/delete-modal'
-import { CreateWorkspaceModal } from '@/app/workspace/[workspaceId]/w/components/sidebar/components/workspace-header/components/create-workspace-modal/create-workspace-modal'
 import { ViewInvitationsMenuItem } from '@/app/workspace/[workspaceId]/w/components/sidebar/components/workspace-header/components/pending-invitations/view-invitations-menu-item'
 import { ViewInvitationsModal } from '@/app/workspace/[workspaceId]/w/components/sidebar/components/workspace-header/components/pending-invitations/view-invitations-modal'
 import { SIDEBAR_RAIL_CHIP_CLASS } from '@/app/workspace/[workspaceId]/w/components/sidebar/constants'
 import { invitationKeys } from '@/hooks/queries/invitations'
-import {
-  type Workspace,
-  type WorkspaceCreationPolicy,
-  workspaceKeys,
-} from '@/hooks/queries/workspace'
+import { type Workspace, workspaceKeys } from '@/hooks/queries/workspace'
 import { usePermissionConfig } from '@/hooks/use-permission-config'
 import { useSettingsNavigation } from '@/hooks/use-settings-navigation'
 
 const logger = createLogger('WorkspaceHeader')
-
-interface DisabledReasonTooltipProps {
-  reason: string | null
-  children: ReactElement
-}
-
-/**
- * Wraps a menu item in a tooltip explaining why the action is unavailable.
- * Renders the child as-is when there is no reason to show.
- */
-function DisabledReasonTooltip({ reason, children }: DisabledReasonTooltipProps) {
-  if (!reason) return children
-  return (
-    <Tooltip.Root>
-      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
-      <Tooltip.Content>
-        <p>{reason}</p>
-      </Tooltip.Content>
-    </Tooltip.Root>
-  )
-}
 
 interface WorkspaceHeaderProps {
   /** The active workspace object */
@@ -83,26 +54,16 @@ interface WorkspaceHeaderProps {
   pinnedWorkspaceIds: ReadonlySet<string>
   /** Callback to toggle a workspace's pinned state */
   onToggleWorkspacePin: (workspaceId: string) => void
-  /** Server-derived workspace creation policy for the current user context */
-  workspaceCreationPolicy?: WorkspaceCreationPolicy | null
   /** Whether workspaces are loading */
   isWorkspacesLoading: boolean
-  /** Whether workspace creation is in progress */
-  isCreatingWorkspace: boolean
   /** Whether the workspace menu popover is open */
   isWorkspaceMenuOpen: boolean
   /** Callback to set workspace menu open state */
   setIsWorkspaceMenuOpen: (isOpen: boolean) => void
   /** Callback when workspace is switched */
   onWorkspaceSwitch: (workspace: Workspace) => void
-  /** Callback when create workspace is confirmed with a name */
-  onCreateWorkspace: (name: string) => Promise<void>
   /** Callback to rename the workspace */
   onRenameWorkspace: (workspaceId: string, newName: string) => Promise<void>
-  /** Callback to delete the workspace */
-  onDeleteWorkspace: (workspaceId: string) => Promise<void>
-  /** Whether workspace deletion is in progress */
-  isDeletingWorkspace: boolean
   /** Callback to upload a workspace logo */
   onUploadLogo: (workspaceId: string) => void
   /** Callback to leave the workspace */
@@ -126,16 +87,11 @@ function WorkspaceHeaderImpl({
   workspaces,
   pinnedWorkspaceIds,
   onToggleWorkspacePin,
-  workspaceCreationPolicy,
   isWorkspacesLoading,
-  isCreatingWorkspace,
   isWorkspaceMenuOpen,
   setIsWorkspaceMenuOpen,
   onWorkspaceSwitch,
-  onCreateWorkspace,
   onRenameWorkspace,
-  onDeleteWorkspace,
-  isDeletingWorkspace,
   onUploadLogo,
   onLeaveWorkspace,
   isLeavingWorkspace,
@@ -143,12 +99,10 @@ function WorkspaceHeaderImpl({
   isCollapsed = false,
   onExpandSidebar,
 }: WorkspaceHeaderProps) {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const { billingEnabled } = useDeploymentShape()
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [isViewInvitationsOpen, setIsViewInvitationsOpen] = useState(false)
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null)
+
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false)
   const [leaveTarget, setLeaveTarget] = useState<Workspace | null>(null)
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null)
@@ -272,9 +226,6 @@ function WorkspaceHeaderImpl({
 
   const activeWorkspaceFull = workspaces.find((w) => w.id === workspaceId) || null
   const isWorkspaceReady = !isWorkspacesLoading && activeWorkspaceFull !== null
-  const canCreateWorkspace = workspaceCreationPolicy?.canCreate ?? true
-  const createWorkspaceDisabledReason =
-    workspaceCreationPolicy?.canCreate === false ? workspaceCreationPolicy.reason : null
   const { isInvitationsDisabled: isInvitationsDisabledByConfig } = usePermissionConfig()
   /**
    * Only workspace admins can invite. The modal takes this as a prop, so each
@@ -350,33 +301,6 @@ function WorkspaceHeaderImpl({
   }
 
   /**
-   * Handles rename action from context menu
-   */
-  const handleRenameAction = () => {
-    if (!capturedWorkspaceRef.current) return
-
-    keepWorkspaceMenuOpenRef.current = true
-    hasInputFocusedRef.current = false
-    setEditingWorkspaceId(capturedWorkspaceRef.current.id)
-    setEditingName(capturedWorkspaceRef.current.name)
-    setIsWorkspaceMenuOpen(true)
-  }
-
-  /**
-   * Handles delete action from context menu
-   */
-  const handleDeleteAction = () => {
-    if (!capturedWorkspaceRef.current) return
-
-    const workspace = workspaces.find((w) => w.id === capturedWorkspaceRef.current?.id)
-    if (workspace) {
-      setDeleteTarget(workspace)
-      setIsDeleteModalOpen(true)
-      setIsWorkspaceMenuOpen(false)
-    }
-  }
-
-  /**
    * Handles leave action from context menu - shows confirmation modal
    */
   const handleLeaveAction = () => {
@@ -423,20 +347,6 @@ function WorkspaceHeaderImpl({
       toast.error("Couldn't leave workspace", {
         description: getErrorMessage(error, 'Please try again in a moment.'),
       })
-    }
-  }
-
-  /**
-   * Handle delete workspace after confirmation
-   */
-  const handleDeleteWorkspace = async () => {
-    try {
-      const targetId = deleteTarget?.id || workspaceId
-      await onDeleteWorkspace(targetId)
-      setIsDeleteModalOpen(false)
-      setDeleteTarget(null)
-    } catch (error) {
-      logger.error('Error deleting workspace:', error)
     }
   }
 
@@ -741,27 +651,6 @@ function WorkspaceHeaderImpl({
                 <DropdownMenuSeparator className='mx-0 mt-0' />
 
                 <div className='flex flex-col gap-0.5'>
-                  <DisabledReasonTooltip reason={createWorkspaceDisabledReason}>
-                    <Chip
-                      leftIcon={Plus}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (!canCreateWorkspace) return
-                        setIsWorkspaceMenuOpen(false)
-                        setIsCreateModalOpen(true)
-                      }}
-                      disabled={isCreatingWorkspace}
-                      aria-disabled={!canCreateWorkspace || undefined}
-                      fullWidth
-                      className={cn(
-                        'select-none',
-                        !canCreateWorkspace &&
-                          'cursor-not-allowed opacity-60 hover-hover:bg-transparent'
-                      )}
-                    >
-                      New workspace
-                    </Chip>
-                  </DisabledReasonTooltip>
                   <ViewInvitationsMenuItem
                     onOpen={() => {
                       setIsWorkspaceMenuOpen(false)
@@ -807,29 +696,15 @@ function WorkspaceHeaderImpl({
 
       <WorkspaceContextMenu
         workspace={workspaces.find((workspace) => workspace.id === menuOpenWorkspaceId)}
-        workspaceCount={workspaces.length}
         sessionUserId={sessionUserId}
         isOpen={isContextMenuOpen}
         position={contextMenuPosition}
         menuRef={contextMenuRef}
         onClose={closeContextMenu}
-        onRename={handleRenameAction}
-        renameInputRef={renameInputRef}
-        onDelete={handleDeleteAction}
         onLeave={handleLeaveAction}
         onTogglePin={handleTogglePinAction}
         onUploadLogo={handleUploadLogoAction}
         isPinned={Boolean(menuOpenWorkspaceId && pinnedWorkspaceIds.has(menuOpenWorkspaceId))}
-      />
-
-      <CreateWorkspaceModal
-        open={isCreateModalOpen}
-        onOpenChange={setIsCreateModalOpen}
-        onConfirm={async (name) => {
-          await onCreateWorkspace(name)
-          setIsCreateModalOpen(false)
-        }}
-        isCreating={isCreatingWorkspace}
       />
 
       <InviteModal
@@ -842,14 +717,6 @@ function WorkspaceHeaderImpl({
         canInvite={userPermissions.canAdmin}
       />
       <ViewInvitationsModal open={isViewInvitationsOpen} onOpenChange={setIsViewInvitationsOpen} />
-      <DeleteModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteWorkspace}
-        isDeleting={isDeletingWorkspace}
-        itemType='workspace'
-        itemName={deleteTarget?.name}
-      />
       <ChipConfirmModal
         open={isLeaveModalOpen}
         onOpenChange={() => setIsLeaveModalOpen(false)}

@@ -35,24 +35,17 @@ function menuItem(name: string) {
   )
 }
 
-function showMenu(
-  overrides: Partial<Workspace> = {},
-  sessionUserId = 'member',
-  workspaceCount = 2
-) {
+function showMenu(overrides: Partial<Workspace> = {}, sessionUserId = 'member') {
   act(() =>
     root.render(
       <WorkspaceContextMenu
         workspace={{ ...workspace, ...overrides }}
-        workspaceCount={workspaceCount}
         sessionUserId={sessionUserId}
         isOpen
         position={{ x: 0, y: 0 }}
         menuRef={createRef<HTMLDivElement>()}
         onClose={vi.fn()}
         onTogglePin={vi.fn()}
-        onRename={vi.fn()}
-        onDelete={vi.fn()}
         onLeave={vi.fn()}
         onUploadLogo={vi.fn()}
       />
@@ -66,28 +59,25 @@ describe('WorkspaceContextMenu', () => {
     (permissions) => {
       showMenu({ permissions })
       expect(menuItem('Pin')).not.toHaveAttribute('aria-disabled', 'true')
-      expect(menuItem('Rename')).toHaveAttribute('aria-disabled', 'true')
-      expect(menuItem('Delete')).toHaveAttribute('aria-disabled', 'true')
       expect(menuItem('Upload logo')).toHaveAttribute('aria-disabled', 'true')
     }
   )
 
-  it('allows an explicit admin to rename and leave', () => {
+  it('never offers renaming or deleting a workspace, even to an admin', () => {
     showMenu()
-    expect(menuItem('Rename')).not.toHaveAttribute('aria-disabled', 'true')
+    expect(menuItem('Rename')).toBeUndefined()
+    expect(menuItem('Delete')).toBeUndefined()
     expect(menuItem('Leave')).toBeDefined()
   })
 
   it('does not offer leaving access inherited from the organization role', () => {
     showMenu({ isOrgAdmin: true })
     expect(menuItem('Leave')).toBeUndefined()
-    expect(menuItem('Rename')).not.toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('does not offer leaving the owned workspace or deleting the final workspace', () => {
-    showMenu({}, 'owner', 1)
+  it('does not offer leaving the owned workspace', () => {
+    showMenu({}, 'owner')
     expect(menuItem('Leave')).toBeUndefined()
-    expect(menuItem('Delete')).toHaveAttribute('aria-disabled', 'true')
   })
 
   it('omits unavailable actions even when the viewer has admin permissions', () => {
@@ -95,20 +85,16 @@ describe('WorkspaceContextMenu', () => {
       root.render(
         <WorkspaceContextMenu
           workspace={workspace}
-          workspaceCount={2}
           sessionUserId='member'
           isOpen
           position={{ x: 0, y: 0 }}
           menuRef={createRef<HTMLDivElement>()}
           onClose={vi.fn()}
-          onRename={vi.fn()}
           onTogglePin={vi.fn()}
         />
       )
     )
     expect(menuItem('Upload logo')).toBeUndefined()
     expect(menuItem('Leave')).toBeUndefined()
-    expect(menuItem('Delete')).toBeUndefined()
-    expect(menuItem('Rename')).toBeDefined()
   })
 })

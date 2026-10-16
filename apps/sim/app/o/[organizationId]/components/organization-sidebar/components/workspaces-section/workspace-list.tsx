@@ -203,21 +203,15 @@ export function WorkspaceList({ organizationId, pathname, flyout }: WorkspaceLis
       )}
       <WorkspaceContextMenu
         workspace={selectedWorkspace}
-        workspaceCount={workspaces.length}
         isOpen={menu.isOpen}
         position={menu.position}
         menuRef={menu.menuRef}
         onClose={menu.closeMenu}
-        renameInputRef={rename.inputRef}
-        showDelete={false}
         showDuplicate={false}
         showOpenInNewTab
         onOpenInNewTab={() => {
           if (selectedWorkspace)
             window.open(`/workspace/${selectedWorkspace.id}`, '_blank', 'noopener,noreferrer')
-        }}
-        onRename={() => {
-          if (selectedWorkspace?.permissions === 'admin') rename.startRename(selectedWorkspace)
         }}
         isPinned={Boolean(selectedId && pinnedWorkspaceIds.has(selectedId))}
         onTogglePin={() => {
