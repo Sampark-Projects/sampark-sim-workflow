@@ -2,7 +2,6 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  Button,
   Chip,
   chipVariants,
   cn,
@@ -12,10 +11,9 @@ import {
   Skeleton,
   scrollFadeAttributes,
   scrollFadeClass,
-  Tooltip,
   useScrollEdges,
 } from '@sim/emcn'
-import { MoreHorizontal, PanelLeft, Pin, Plus, Task, Workflow } from '@sim/emcn/icons'
+import { MoreHorizontal, PanelLeft, Pin, Task, Workflow } from '@sim/emcn/icons'
 import { createLogger } from '@sim/logger'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { usePostHog } from 'posthog-js/react'
@@ -72,7 +70,6 @@ import {
 import {
   useChatSelection,
   useFlyoutInlineRename,
-  useFolderOperations,
   useHoverMenu,
   useWorkflowOperations,
   useWorkspaceLogoUpload,
@@ -457,16 +454,11 @@ export const Sidebar = memo(function Sidebar() {
     workspaces,
     pinnedWorkspaceIds,
     toggleWorkspacePin,
-    workspaceCreationPolicy,
     activeWorkspace,
     isWorkspacesLoading,
     switchWorkspace,
-    handleCreateWorkspace,
-    isCreatingWorkspace,
-    isDeletingWorkspace,
     isLeavingWorkspace,
     updateWorkspace,
-    confirmDeleteWorkspace,
     handleLeaveWorkspace,
   } = useWorkspaceManagement({
     workspaceId,
@@ -491,16 +483,7 @@ export const Sidebar = memo(function Sidebar() {
     },
   })
 
-  const {
-    regularWorkflows,
-    workflowsLoading,
-    isCreatingWorkflow,
-    handleCreateWorkflow: createWorkflow,
-  } = useWorkflowOperations({ workspaceId })
-
-  const { isCreatingFolder, handleCreateFolder: createFolder } = useFolderOperations({
-    workspaceId,
-  })
+  const { regularWorkflows, workflowsLoading } = useWorkflowOperations({ workspaceId })
 
   useFolders(workspaceId)
   useWorkspaceWorkflowsRoom(workspaceId)
@@ -854,14 +837,6 @@ export const Sidebar = memo(function Sidebar() {
     [workspaceId]
   )
 
-  const handleCollapsedWorkflowRename = useCallback(
-    (workflow: { id: string; name: string }) => {
-      workflowsHover.setLocked(true)
-      workflowFlyoutRename.startRename({ id: workflow.id, name: workflow.name })
-    },
-    [workflowFlyoutRename, workflowsHover]
-  )
-
   const scrollEdges = useScrollEdges(scrollContainerRef, {
     contentRef: scrollContentRef,
     enabled: !isCollapsed,
@@ -955,22 +930,6 @@ export const Sidebar = memo(function Sidebar() {
     })
   }, [workflowId, workflowsLoading])
 
-  const handleCreateWorkflow = useCallback(async () => {
-    const workflowId = await createWorkflow()
-    if (workflowId) {
-      window.dispatchEvent(
-        new CustomEvent(SIDEBAR_SCROLL_EVENT, { detail: { itemId: workflowId } })
-      )
-    }
-  }, [createWorkflow])
-
-  const handleCreateFolder = useCallback(async () => {
-    const folderId = await createFolder()
-    if (folderId) {
-      window.dispatchEvent(new CustomEvent(SIDEBAR_SCROLL_EVENT, { detail: { itemId: folderId } }))
-    }
-  }, [createFolder])
-
   const handleImportWorkflow = () => {
     fileInputRef.current?.click()
   }
@@ -1017,16 +976,6 @@ export const Sidebar = memo(function Sidebar() {
     [logoFileInputRef, setLogoTargetWorkspaceId]
   )
 
-  const handleDeleteWorkspace = useCallback(
-    async (workspaceIdToDelete: string) => {
-      const workspaceToDelete = workspaces.find((w) => w.id === workspaceIdToDelete)
-      if (workspaceToDelete) {
-        await confirmDeleteWorkspace(workspaceToDelete)
-      }
-    },
-    [workspaces, confirmDeleteWorkspace]
-  )
-
   const handleLeaveWorkspaceWrapper = useCallback(
     async (workspaceIdToLeave: string) => {
       const workspaceToLeave = workspaces.find((w) => w.id === workspaceIdToLeave)
@@ -1042,11 +991,6 @@ export const Sidebar = memo(function Sidebar() {
   const workflowsCollapsedIcon = (
     <Workflow className='size-[16px] shrink-0 text-[var(--text-icon)]' />
   )
-
-  const workflowsPrimaryAction = {
-    label: 'New workflow',
-    onSelect: handleCreateWorkflow,
-  }
 
   const handleSeeMoreChats = useCallback(() => setVisibleChatCount((prev) => prev + 5), [])
   const handleSeeLessChats = useCallback(() => setVisibleChatCount(5), [])
@@ -1137,13 +1081,6 @@ export const Sidebar = memo(function Sidebar() {
         },
       },
       {
-        id: 'add-workflow',
-        handler: () => {
-          if (!canEdit || isCreatingWorkflow) return
-          handleCreateWorkflow()
-        },
-      },
-      {
         id: 'toggle-sidebar',
         handler: () => {
           toggleCollapsed()
@@ -1197,16 +1134,11 @@ export const Sidebar = memo(function Sidebar() {
                 workspaces={workspaces}
                 pinnedWorkspaceIds={pinnedWorkspaceIds}
                 onToggleWorkspacePin={toggleWorkspacePin}
-                workspaceCreationPolicy={workspaceCreationPolicy}
                 isWorkspacesLoading={isWorkspacesLoading}
-                isCreatingWorkspace={isCreatingWorkspace}
                 isWorkspaceMenuOpen={isWorkspaceMenuOpen}
                 setIsWorkspaceMenuOpen={setIsWorkspaceMenuOpen}
                 onWorkspaceSwitch={handleWorkspaceSwitch}
-                onCreateWorkspace={handleCreateWorkspace}
                 onRenameWorkspace={handleRenameWorkspace}
-                onDeleteWorkspace={handleDeleteWorkspace}
-                isDeletingWorkspace={isDeletingWorkspace}
                 onUploadLogo={handleUploadLogo}
                 onLeaveWorkspace={handleLeaveWorkspaceWrapper}
                 isLeavingWorkspace={isLeavingWorkspace}
@@ -1279,33 +1211,6 @@ export const Sidebar = memo(function Sidebar() {
                       title='Workflows'
                       railCollapsed={isCollapsed}
                       className={cn(SIDEBAR_SECTION_GAP_CLASS, 'workflows-section relative')}
-                      action={
-                        isCollapsed ? undefined : (
-                          <div className='flex items-center justify-center gap-2'>
-                            <Tooltip.Root>
-                              <Tooltip.Trigger asChild>
-                                <Button
-                                  variant='quiet'
-                                  size='icon'
-                                  onClick={handleCreateWorkflow}
-                                  disabled={isCreatingWorkflow || (!permissionsLoading && !canEdit)}
-                                >
-                                  <Plus className='h-[16px] w-[16px]' />
-                                </Button>
-                              </Tooltip.Trigger>
-                              <Tooltip.Content>
-                                {isCreatingWorkflow ? (
-                                  <p>Creating workflow...</p>
-                                ) : (
-                                  <Tooltip.Shortcut keys={isMac ? '⌘⇧P' : 'Ctrl+Shift+P'}>
-                                    New workflow
-                                  </Tooltip.Shortcut>
-                                )}
-                              </Tooltip.Content>
-                            </Tooltip.Root>
-                          </div>
-                        )
-                      }
                     >
                       {isCollapsed ? (
                         <div className='px-2'>
@@ -1314,7 +1219,6 @@ export const Sidebar = memo(function Sidebar() {
                             hover={workflowsHover}
                             ariaLabel='Workflows'
                             isEditing={!!workflowFlyoutRename.editingId}
-                            primaryAction={workflowsPrimaryAction}
                           >
                             {workflowsLoading && regularWorkflows.length === 0 ? (
                               <DropdownMenuItem disabled>
@@ -1341,8 +1245,6 @@ export const Sidebar = memo(function Sidebar() {
                                       onEditKeyDown={workflowFlyoutRename.handleKeyDown}
                                       onEditBlur={handleWorkflowRenameBlur}
                                       onWorkflowOpenInNewTab={handleCollapsedWorkflowOpenInNewTab}
-                                      onWorkflowRename={handleCollapsedWorkflowRename}
-                                      canRenameWorkflow={canEdit}
                                     />
                                   ) : (
                                     <CollapsedWorkflowFlyoutItem
@@ -1362,8 +1264,6 @@ export const Sidebar = memo(function Sidebar() {
                                       onOpenInNewTab={() =>
                                         handleCollapsedWorkflowOpenInNewTab(item.workflow)
                                       }
-                                      onRename={() => handleCollapsedWorkflowRename(item.workflow)}
-                                      canRename={canEdit}
                                     />
                                   )
                                 )}
@@ -1383,9 +1283,6 @@ export const Sidebar = memo(function Sidebar() {
                               isLoading={isLoading}
                               canReorder={canEdit}
                               scrollContainerRef={scrollContainerRef}
-                              onCreateWorkflow={handleCreateWorkflow}
-                              onCreateFolder={handleCreateFolder}
-                              disableCreate={!canEdit || isCreatingWorkflow || isCreatingFolder}
                             />
                           )}
                         </div>
@@ -1474,8 +1371,6 @@ export const Sidebar = memo(function Sidebar() {
         pageContext={searchModalPageContext}
         canEdit={canEdit}
         canAdmin={canAdmin}
-        onCreateWorkflow={handleCreateWorkflow}
-        onCreateFolder={handleCreateFolder}
         onImportWorkflow={handleImportWorkflow}
       />
 

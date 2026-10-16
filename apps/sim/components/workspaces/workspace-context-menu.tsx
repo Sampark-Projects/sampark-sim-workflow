@@ -7,6 +7,9 @@ import { ContextMenu } from '@/app/workspace/[workspaceId]/w/components/sidebar/
 interface WorkspaceContextMenuProps
   extends Omit<
     ComponentProps<typeof ContextMenu>,
+    | 'onRename'
+    | 'renameInputRef'
+    | 'onDelete'
     | 'disableRename'
     | 'disableDelete'
     | 'disableUploadLogo'
@@ -14,16 +17,19 @@ interface WorkspaceContextMenuProps
     | 'showUploadLogo'
     | 'showPin'
     | 'showRename'
+    | 'showDelete'
   > {
   workspace?: Workspace | null
-  workspaceCount: number
   sessionUserId?: string
 }
 
-/** Uses the same workspace role policy in the switcher and organization sidebar. */
+/**
+ * Uses the same workspace role policy in the switcher and organization sidebar.
+ * Workspaces are provisioned and named by ITSM, so they cannot be renamed or
+ * deleted from Sim.
+ */
 export function WorkspaceContextMenu({
   workspace,
-  workspaceCount,
   sessionUserId,
   ...props
 }: WorkspaceContextMenuProps) {
@@ -36,12 +42,11 @@ export function WorkspaceContextMenu({
     <ContextMenu
       {...props}
       showPin
-      showRename
+      showRename={false}
+      showDelete={false}
       showUploadLogo={Boolean(props.onUploadLogo)}
       showLeave={canLeave && Boolean(props.onLeave)}
-      disableRename={!canAdmin}
       disableUploadLogo={!canAdmin}
-      disableDelete={!canAdmin || workspaceCount <= 1}
     />
   )
 }
